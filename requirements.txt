@@ -1,0 +1,13 @@
+nltk
+transformers
+datasets
+srt
+gdown
+deepmultilingualpunctuation
+silero-vad
+spacy
+pytextrank
+pydub
+ffmpeg-python
+pymediainfo
+git+https://github.com/m-bain/whisperX.git
