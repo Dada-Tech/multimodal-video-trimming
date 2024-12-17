@@ -1,2 +1,2 @@
-# multimodal-video-summarization-educational-content
-Video Summarization for Educational Content in Low-Production Environments
+# multimodal-video-trimming
+Video trimming for Educational Content in Low-Production Environments
