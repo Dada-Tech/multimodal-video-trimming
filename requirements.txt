@@ -1,4 +1,5 @@
 nltk
+numpy~=1.26.4
 transformers
 datasets
 srt
@@ -9,5 +10,6 @@ spacy
 pytextrank
 pydub
 ffmpeg-python
+ffmpeg
 pymediainfo
-git+https://github.com/m-bain/whisperX.git
+argparse
