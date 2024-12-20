@@ -66,19 +66,29 @@ def dev_mode_print(message):
 
 print_section("installing deps")
 if notebook_mode:
-    subprocess.check_call(['python', '-m', 'pip', 'install', '-r', 'requirements.txt'])
+    subprocess.check_call(['python', '-m', 'pip', 'install', '--no-cache-dir', '-r', 'requirements.txt'])
     subprocess.check_call(['pip', 'install', 'git+https://github.com/m-bain/whisperx.git'])
-
-    # NLTK
-    import nltk
-    nltk.download('punkt')
-    nltk.download('punkt_tab')
 
     print_info("installation done.")
 else:
     print_info("wisperX only")
     subprocess.run(['pip', 'install', '-U', 'whisperx'], check=True, capture_output=False)
     print_info("installation done.")
+
+# !pip install nltk
+# !pip install transformers
+# !pip install datasets
+# !pip install srt
+# !pip install gdown
+# !apt install ffmpeg
+# !pip install deepmultilingualpunctuation
+# !pip install silero-vad
+# !pip install spacy
+# !pip install pytextrank
+# !pip install pydub
+# !pip install ffmpeg-python pymediainfo
+
+# !pip install git+https://github.com/m-bain/whisperX.git
 
 from pydantic import BaseModel, validator, conint, confloat, ValidationError
 from enum import Enum
@@ -180,7 +190,6 @@ else:
 
 
 
-
 # Validate Hyperparameters
 try:
     validated_hyperparameters = Hyperparameters(**hyperparameters)
@@ -190,7 +199,16 @@ except ValidationError as e:
     print_info("exiting...")
     os._exit(1)
 
-print_info("importng...")
+"""# Imports
+
+
+"""
+
+# !pip cache purge
+# !pip install --upgrade transformers
+# !pip list | grep transformers
+
+print_info("importing...")
 
 import os
 import numpy as np
@@ -206,6 +224,7 @@ from datasets import load_dataset
 import torch
 import torchaudio
 import torch.nn.functional as F
+import transformers
 from transformers import \
 LongformerTokenizer, LongformerModel, LongformerForSequenceClassification, LongformerConfig, \
 RobertaTokenizer, RobertaForTokenClassification, Trainer, TrainingArguments, \
@@ -215,6 +234,8 @@ LEDTokenizer, LEDForConditionalGeneration
 import pytextrank
 import nltk
 from nltk.tokenize import sent_tokenize
+nltk.download('punkt')
+nltk.download('punkt_tab')
 import spacy
 import srt
 
@@ -225,7 +246,8 @@ from silero_vad import load_silero_vad, read_audio, get_speech_timestamps
 from pydub import AudioSegment
 
 # Video
-import ffmpeg
+import imageio_ffmpeg
+ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
 
 print_info("importing done")
 
@@ -337,7 +359,8 @@ print_section("Preprocessing")
 # Extract audio (wav) from video
 # !ffmpeg -y -i "$video_input" -vn -acodec pcm_s16le -ar 44100 -ac 2 "$audio_output"
 print_info("extracting audio from video")
-subprocess.run(['ffmpeg', '-y', '-i', '$video_input', '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', '$audio_output'], check=True)
+
+subprocess.run([ffmpeg, '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True)
 
 """## Audio - SRT File Generation
 
