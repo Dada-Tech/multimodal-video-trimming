@@ -64,16 +64,20 @@ def dev_mode_print(message):
 
 """# Installation & Setup"""
 
-print_section("installing deps")
 if notebook_mode:
+    print_section("installing deps")
+
+    # download requirements.txt from repository
+    subprocess.run(["curl", "-O", "https://raw.githubusercontent.com/Dada-Tech/multimodal-video-trimming/main/requirements.txt"], check=True)
+
     subprocess.check_call(['python', '-m', 'pip', 'install', '--no-cache-dir', '-r', 'requirements.txt'])
     subprocess.check_call(['pip', 'install', 'git+https://github.com/m-bain/whisperx.git'])
 
-    print_info("installation done.")
+    print_info("installation done")
 else:
-    print_info("wisperX only")
-    subprocess.run(['pip', 'install', '-U', 'whisperx'], check=True, capture_output=False)
-    print_info("installation done.")
+    print_info("skipping installation")
+    # subprocess.run(['pip', 'install', '-U', 'whisperx'], check=True, capture_output=False)
+    # print_info("installation done.")
 
 # !pip install nltk
 # !pip install transformers
@@ -204,10 +208,6 @@ except ValidationError as e:
 
 """
 
-# !pip cache purge
-# !pip install --upgrade transformers
-# !pip list | grep transformers
-
 print_info("importing...")
 
 import os
@@ -224,18 +224,15 @@ from datasets import load_dataset
 import torch
 import torchaudio
 import torch.nn.functional as F
-import transformers
 from transformers import \
 LongformerTokenizer, LongformerModel, LongformerForSequenceClassification, LongformerConfig, \
-RobertaTokenizer, RobertaForTokenClassification, Trainer, TrainingArguments, \
+RobertaTokenizer, RobertaForTokenClassification, TrainingArguments, \
 LEDTokenizer, LEDForConditionalGeneration
 
 # Text
 import pytextrank
 import nltk
 from nltk.tokenize import sent_tokenize
-nltk.download('punkt')
-nltk.download('punkt_tab')
 import spacy
 import srt
 
@@ -250,6 +247,13 @@ import imageio_ffmpeg
 ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
 
 print_info("importing done")
+
+print_info("downloading NLTK libraries...")
+
+nltk.download('punkt')
+nltk.download('punkt_tab')
+
+print_info("downloading done")
 
 """# Variables"""
 
@@ -360,16 +364,14 @@ print_section("Preprocessing")
 # !ffmpeg -y -i "$video_input" -vn -acodec pcm_s16le -ar 44100 -ac 2 "$audio_output"
 print_info("extracting audio from video")
 
-subprocess.run([ffmpeg, '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True)
+# subprocess.run([ffmpeg, '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True)
+subprocess.run([ffmpeg, '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True, capture_output=True)
 
 """## Audio - SRT File Generation
 
 ##### Time Taken: ~4min
-"""
 
-print_info("Generating SRT File...")
-
-"""SRT  
+SRT  
 each **`subtitle`** in the subtitles array has the following properties:
 
 1. **`index`**
@@ -407,6 +409,8 @@ def seconds_to_srt_timestamp(seconds):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 language="en"
 compute_type="int8"
+
+print_info(f"""Generating SRT File with {device}...""")
 
 # Model WhisperX
 model = whisperx.load_model("base", device=device, language=language, compute_type=compute_type) # Choose "base" or "large" model
@@ -479,6 +483,7 @@ paragraph = reduce(lambda acc, seg: acc + seg.strip() + ' ', sentences, '')
 
 # Print the paragraph
 notebook_mode_print(paragraph)
+print_info("paragraph sample", paragraph)
 
 """## Text - Paragraph Summarized
 
@@ -517,7 +522,7 @@ summary_ids = model.generate(
 )
 
 paragraph_summarized = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
-print_info("paragraph summarized", paragraph_summarized, 30)
+print_info("paragraph summarized", paragraph_summarized)
 
 # Simple Metrics
 print_info("Simple Metrics")
@@ -821,6 +826,8 @@ def skim_video(input_video, output_video, segments_to_retain):
         segments_to_retain (list of tuples): List of tuples where each tuple contains
                                              (start_time, end_time) in seconds to retain.
     """
+    print_info("Processed video...")
+
     # Prepare the select filter for video (only select the specified ranges)
     video_select_filter = '+'.join([
         f"between(t,{start},{end})"
@@ -855,10 +862,25 @@ def skim_video(input_video, output_video, segments_to_retain):
     else:
         print_info("Video processed successfully.")
 
-def get_video_length(input_video):
-    """Get the duration (length) of a video file using ffmpeg-python."""
-    probe = ffmpeg.probe(input_video, v='error', select_streams='v:0', show_entries='format=duration')
-    return float(probe['format']['duration'])
+# def get_video_length(input_video):
+#     """Get the duration (length) of a video file using ffmpeg-python."""
+#     probe = ffmpeg.probe(input_video, v='error', select_streams='v:0', show_entries='format=duration')
+#     return float(probe['format']['duration'])
+
+def get_video_length(video_input):
+
+    # Run ffmpeg to get video information
+    result = subprocess.run([ffmpeg, '-i', video_input], stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+
+    # Extract duration from stderr output
+    stderr_output = result.stderr
+    for line in stderr_output.split('\n'):
+        if 'Duration' in line:
+            # Extract the duration: 'Duration: hh:mm:ss.xx'
+            duration_str = line.split(',')[0].split('Duration: ')[1].strip()
+            h, m, s = map(float, duration_str.split(':'))
+            return h * 3600 + m * 60 + s  # Convert to seconds
+    return 0  # Return 0 if duration is not found
 
 def generate_keep_timestamps(timestamps_to_remove, video_length=None):
     """
@@ -918,6 +940,8 @@ notebook_mode_print(f"Timestamps to keep: {timestamps_to_keep}")
 skim_video(video_input, video_output_skimmed, timestamps_to_keep)
 
 # Download
+print_info("Downloading video...")
+
 files.download(video_output_skimmed)
 
 # Simple Metrics
