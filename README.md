@@ -35,4 +35,5 @@ $ cd whisperX
 $ pip install -e .
 ```
 
-You may also need to install ffmpeg, rust etc. Follow openAI instructions here https://github.com/openai/whisper#setup.
+Note: Some users face installation failures due to an error with `ctranslate` version not being satisfied.  
+Use `pip install git+https://github.com/m-bain/whisperx.git@9b9e03c4cc88ddfbbdf5f896918e57dc0298db41`
