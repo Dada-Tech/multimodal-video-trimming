@@ -10,5 +10,5 @@ pydub==0.25.1
 pymediainfo==6.1.0
 silero-vad==5.1.2
 spacy==3.8.3
-transformers==4.47.1
+transformers==4.39.3
 git+https://github.com/m-bain/whisperx.git@9b9e03c4cc88ddfbbdf5f896918e57dc0298db41
