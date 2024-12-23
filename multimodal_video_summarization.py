@@ -704,21 +704,21 @@ OR
 # print(f"Audio shape: {wav.shape}")
 # print(f"Audio length (seconds): {len(wav) / SAMPLING_RATE:.2f}")
 
-# Speech Intervals
-speech_intervals = []
-for i in range(0, len(speech_timestamps)-1):
-    speech_intervals.append((speech_timestamps[i]['start'] / SAMPLING_RATE, speech_timestamps[i]['end'] / SAMPLING_RATE))
+# # Speech Intervals
+# speech_intervals = []
+# for i in range(0, len(speech_timestamps)-1):
+#     speech_intervals.append((speech_timestamps[i]['start'] / SAMPLING_RATE, speech_timestamps[i]['end'] / SAMPLING_RATE))
 
-# Silence Intervals
-silence_intervals = []
-for i in range(1, len(speech_timestamps)):
-    silence_start = speech_timestamps[i-1]['end']  # End of previous speech segment
-    silence_end = speech_timestamps[i]['start']     # Start of current speech segment
-    silence_intervals.append((silence_start / SAMPLING_RATE, silence_end / SAMPLING_RATE))
+# # Silence Intervals
+# silence_intervals = []
+# for i in range(1, len(speech_timestamps)):
+#     silence_start = speech_timestamps[i-1]['end']  # End of previous speech segment
+#     silence_end = speech_timestamps[i]['start']     # Start of current speech segment
+#     silence_intervals.append((silence_start / SAMPLING_RATE, silence_end / SAMPLING_RATE))
 
-notebook_mode_print(speech_timestamps[0:3])
-notebook_mode_print(speech_intervals[0:3])
-notebook_mode_print(silence_intervals[0:3])
+# notebook_mode_print(speech_timestamps[0:3])
+# notebook_mode_print(speech_intervals[0:3])
+# notebook_mode_print(silence_intervals[0:3])
 
 """# Video
 
