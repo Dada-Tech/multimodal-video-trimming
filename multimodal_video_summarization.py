@@ -387,17 +387,34 @@ def seconds_to_srt_timestamp(seconds):
     return f"{hours:02}:{minutes:02}:{int(seconds):02},{milliseconds:03}"
 
 # Select device (GPU if available, otherwise CPU)
-device = "cuda" if torch.cuda.is_available() else "cpu"
 language="en"
-compute_type="int8"
 
-print_info(f"""Generating SRT File with {device}...""")
+from multiprocessing import Queue
+
+# GPU
+if torch.cuda.is_available():
+  device = "cuda"
+  compute_type = "float16"
+  batch_size = 16
+  model_whisperx = "base"
+
+  print_info(f"""Generating SRT File with {device}...""")
+else:
+  device = "cpu"
+  compute_type = "int8"
+  batch_size = 1
+  model_whisperx = "tiny"
+
+  queue = Queue(maxsize=200)
+
+  print_info(f"""WARNING: Generating SRT File with {device}...""")
+
 
 # Model WhisperX
-model = whisperx.load_model("base", device=device, language=language, compute_type=compute_type) # Choose "base" or "large" model
+model = whisperx.load_model(model_whisperx, device=device, language=language, compute_type=compute_type) # Choose "base" or "large" model
 
 # Transcribe audio
-aligned_segments = model.transcribe(audio_output)
+aligned_segments = model.transcribe(audio_output, batch_size=batch_size)
 
 # Align with forced alignment
 alignment_model, metadata = whisperx.load_align_model(language_code=aligned_segments["language"], device=device)
