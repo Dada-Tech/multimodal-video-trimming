@@ -2,7 +2,6 @@
 Video trimming for Educational Content in Low-Production Environments
 
 # Installation
-Partially taken from [WhisperX Installation Guide.](https://github.com/m-bain/whisperx)
 
 ### 1. Create Python3.10 environment
 
@@ -20,7 +19,30 @@ Partially taken from [WhisperX Installation Guide.](https://github.com/m-bain/wh
 
 See other methods [here.](https://pytorch.org/get-started/previous-versions/#v200)
 
-### 3. Install this repo
+
+### 3. Install FFMPEG
+
+It also requires the command-line tool [`ffmpeg`](https://ffmpeg.org/) to be installed on your system, which is available from most package managers:
+```bash
+# on Ubuntu or Debian
+sudo apt update && sudo apt install ffmpeg
+
+# on Arch Linux
+sudo pacman -S ffmpeg
+
+# on MacOS using Homebrew (https://brew.sh/)
+brew install ffmpeg
+
+# on Windows using Chocolatey (https://chocolatey.org/)
+choco install ffmpeg
+
+# on Windows using Scoop (https://scoop.sh/)
+scoop install ffmpeg
+```
+
+
+### 4. Install WhisperX
+Partially taken from [WhisperX Installation Guide.](https://github.com/m-bain/whisperx)
 
 `pip install git+https://github.com/m-bain/whisperx.git`
 
@@ -28,12 +50,8 @@ If already installed, update package to most recent commit
 
 `pip install git+https://github.com/m-bain/whisperx.git --upgrade`
 
-If wishing to modify this package, clone and install in editable mode:
-```
-$ git clone https://github.com/m-bain/whisperX.git
-$ cd whisperX
-$ pip install -e .
-```
+##### Note:
+Some users face installation failures due to an error with `ctranslate` version not being satisfied.
+This can be fixed with the following  
 
-Note: Some users face installation failures due to an error with `ctranslate` version not being satisfied.  
-Use `pip install git+https://github.com/m-bain/whisperx.git@9b9e03c4cc88ddfbbdf5f896918e57dc0298db41`
+`pip install git+https://github.com/m-bain/whisperx.git@9b9e03c4cc88ddfbbdf5f896918e57dc0298db41`
