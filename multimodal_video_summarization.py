@@ -71,28 +71,10 @@ if notebook_mode:
     subprocess.run(["curl", "-O", "https://raw.githubusercontent.com/Dada-Tech/multimodal-video-trimming/main/requirements.txt"], check=True)
 
     subprocess.check_call(['python', '-m', 'pip', 'install', '--no-cache-dir', '-r', 'requirements.txt'])
-    subprocess.check_call(['pip', 'install', 'git+https://github.com/m-bain/whisperx.git'])
 
-    print_info("installation done")
+    print_info("installation done.")
 else:
     print_info("skipping installation")
-    # subprocess.run(['pip', 'install', '-U', 'whisperx'], check=True, capture_output=False)
-    # print_info("installation done.")
-
-# !pip install nltk
-# !pip install transformers
-# !pip install datasets
-# !pip install srt
-# !pip install gdown
-# !apt install ffmpeg
-# !pip install deepmultilingualpunctuation
-# !pip install silero-vad
-# !pip install spacy
-# !pip install pytextrank
-# !pip install pydub
-# !pip install ffmpeg-python pymediainfo
-
-# !pip install git+https://github.com/m-bain/whisperX.git
 
 from pydantic import BaseModel, validator, conint, confloat, ValidationError
 from enum import Enum
@@ -243,8 +225,7 @@ from silero_vad import load_silero_vad, read_audio, get_speech_timestamps
 from pydub import AudioSegment
 
 # Video
-import imageio_ffmpeg
-ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+import ffmpeg
 
 print_info("importing done")
 
@@ -364,8 +345,8 @@ print_section("Preprocessing")
 # !ffmpeg -y -i "$video_input" -vn -acodec pcm_s16le -ar 44100 -ac 2 "$audio_output"
 print_info("extracting audio from video")
 
-# subprocess.run([ffmpeg, '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True)
-subprocess.run([ffmpeg, '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True, capture_output=True)
+subprocess.run(['ffmpeg', '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True)
+# subprocess.run(["ffmpeg", '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True, capture_output=True)
 
 """## Audio - SRT File Generation
 
@@ -862,25 +843,25 @@ def skim_video(input_video, output_video, segments_to_retain):
     else:
         print_info("Video processed successfully.")
 
-# def get_video_length(input_video):
-#     """Get the duration (length) of a video file using ffmpeg-python."""
-#     probe = ffmpeg.probe(input_video, v='error', select_streams='v:0', show_entries='format=duration')
-#     return float(probe['format']['duration'])
+def get_video_length(input_video):
+    """Get the duration (length) of a video file using ffmpeg-python."""
+    probe = ffmpeg.probe(input_video, v='error', select_streams='v:0', show_entries='format=duration')
+    return float(probe['format']['duration'])
 
-def get_video_length(video_input):
+# def get_video_length(video_input):
 
-    # Run ffmpeg to get video information
-    result = subprocess.run([ffmpeg, '-i', video_input], stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+#     # Run ffmpeg to get video information
+#     result = subprocess.run([ffmpeg, '-i', video_input], stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
 
-    # Extract duration from stderr output
-    stderr_output = result.stderr
-    for line in stderr_output.split('\n'):
-        if 'Duration' in line:
-            # Extract the duration: 'Duration: hh:mm:ss.xx'
-            duration_str = line.split(',')[0].split('Duration: ')[1].strip()
-            h, m, s = map(float, duration_str.split(':'))
-            return h * 3600 + m * 60 + s  # Convert to seconds
-    return 0  # Return 0 if duration is not found
+#     # Extract duration from stderr output
+#     stderr_output = result.stderr
+#     for line in stderr_output.split('\n'):
+#         if 'Duration' in line:
+#             # Extract the duration: 'Duration: hh:mm:ss.xx'
+#             duration_str = line.split(',')[0].split('Duration: ')[1].strip()
+#             h, m, s = map(float, duration_str.split(':'))
+#             return h * 3600 + m * 60 + s  # Convert to seconds
+#     return 0  # Return 0 if duration is not found
 
 def generate_keep_timestamps(timestamps_to_remove, video_length=None):
     """
