@@ -119,6 +119,7 @@ class Hyperparameters(BaseModel):
 
 if notebook_mode:
   video_input = "dataset/teamwork in the classroom.mov"
+  # video_output = "dataset/teamwork in the classroom_skimmed.mov"
   video_export_max_length_seconds = 0 # set develop video max length to export a shortened version of the multimedia
 
   # original was max_length=150, min_length=30
@@ -142,7 +143,8 @@ else:
 
   # Define the arguments for the inputs
   parser.add_argument("--video_export_max_length_seconds", type=int, default=0, help="Maximum length of the video to export (in seconds)")
-  parser.add_argument("--video_input", type=str, required=True, help="Path to the video input file")
+  parser.add_argument("--video_input", "-i", type=str, required=True, help="Path to the video input file")
+  # parser.add_argument("--video_output", "-o", type=str, default=None, help="Optional path to save the output video")
 
   # Hyperparameters as individual arguments
   parser.add_argument("--auto_summary_summary_length_percentage", type=float, default=0.3, help="Summary length as a percentage")
