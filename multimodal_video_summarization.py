@@ -80,10 +80,6 @@ from pydantic import BaseModel, validator, conint, confloat, ValidationError
 from enum import Enum
 import argparse
 
-class ModelSize(Enum):
-    BASE = "base"
-    LARGE = "large"
-
 class AutoSummary(BaseModel):
     summary_length_percentage: confloat(ge=0.2, le=0.5)
     min_summary_length: conint(ge=30, le=60)
@@ -93,7 +89,7 @@ class DeletionMetric(BaseModel):
     threshold: confloat(ge=0.2, le=0.5)
 
 class Metric1(BaseModel):
-    model_size: ModelSize
+    model_size: str
 
 class Hyperparameters(BaseModel):
     auto_summary: AutoSummary
@@ -133,7 +129,7 @@ if notebook_mode:
           "threshold": 0.3
       },
       "metric_1": {
-          "model_size": ModelSize.BASE
+          "model_size": "base"
       }
   }
 
@@ -152,8 +148,6 @@ else:
   parser.add_argument("--auto_summary_max_summary_length", type=int, default=600, help="Maximum summary length")
   parser.add_argument("--deletion_metric_threshold", type=float, default=0.3, help="Threshold for deletion metric")
   parser.add_argument("--metric_1_model_size", type=str, choices=["base", "large"], default="base", help="Model size for metric 1")
-
-  parser.add_argument("--install", action="store_true", help="Installation dependencies in requirements.txt")
 
   # Parse arguments
   args = parser.parse_args()
@@ -547,7 +541,7 @@ print_section("Metric 1: Sentence-Summarized Relevancy")
 
 # config
 attention_window = 256
-model_size = hyperparameters["metric_1"]["model_size"].value
+model_size = hyperparameters["metric_1"]["model_size"]
 model_name_lf = f'allenai/longformer-{model_size}-4096'
 config = LongformerConfig.from_pretrained(model_name_lf, attention_window=attention_window)
 
