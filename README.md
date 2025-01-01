@@ -12,10 +12,28 @@ Video trimming for Educational Content in Low-Production Environments
 
 ### 2. Install PyTorch, e.g. for Linux and Windows CUDA11.8:
 
+#### CONDA
+##### Linux, Windows
 `conda install pytorch==2.0.0 torchaudio==2.0.0 pytorch-cuda=11.8 -c pytorch -c nvidia`
 
 ##### Mac OSX
 `conda install pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 -c pytorch`
+
+#### WHEEL
+
+##### Mac OSX
+`pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1`
+
+##### Linux and Windows
+###### ROCM 5.4.2 (Linux only)
+`pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/rocm5.4.2`
+###### CUDA 11.7
+`pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1`
+###### CUDA 11.8
+`pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu118`
+###### CPU only
+`pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/c`
+
 
 See other methods [here.](https://pytorch.org/get-started/previous-versions/#v200)
 
