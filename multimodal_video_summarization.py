@@ -934,9 +934,9 @@ notebook_mode_print(f"Timestamps to keep: {timestamps_to_keep}")
 skim_video(video_input, video_output_skimmed, timestamps_to_keep)
 
 # Download
-print_info("Downloading video...")
-
-files.download(video_output_skimmed)
+if notebook_mode:
+  print_info("Downloading video...")
+  files.download(video_output_skimmed)
 
 # Simple Metrics
 print_section("Simple Metrics")
@@ -945,7 +945,6 @@ original_video_length = get_video_length(video_input)
 print(f"Original Video Length: {original_video_length:.2f}s\n")
 
 skimmed_video_length = get_video_length(video_output_skimmed)
-print(f"Skimmed Video Length: {skimmed_video_length:.2f}s\n")
 
 summarization_ratio = (original_video_length - skimmed_video_length) / original_video_length
 print(f"Summarized/Original Video Length Ratio: {summarization_ratio:.2f}")
