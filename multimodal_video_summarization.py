@@ -16,51 +16,58 @@ notebook_mode = "auto"
 dev_mode = False
 
 # Notebook Mode: Auto-detect Google Colab instance
-notebook_mode = (True if 'COLAB_GPU' in os.environ else False) if notebook_mode == "auto" else notebook_mode
+notebook_mode = (
+    True if 'COLAB_GPU' in os.environ else False) if notebook_mode == "auto" else notebook_mode
 print(f"""Notebook Mode: {notebook_mode}""")
 
+
 def print_section(message):
-  """Prints a section separator with a custom message embedded.
+    """Prints a section separator with a custom message embedded.
 
-  Args:
-    message: The message to embed within the separator.
-  """
-  separator_length = 40
-  separator_char = "="
+    Args:
+      message: The message to embed within the separator.
+    """
+    separator_length = 40
+    separator_char = "="
 
-  # Calculate padding for the message
-  message_length = len(message)
-  padding = (separator_length - message_length - 2) // 2
-  padding = max(padding, 0)
+    # Calculate padding for the message
+    message_length = len(message)
+    padding = (separator_length - message_length - 2) // 2
+    padding = max(padding, 0)
 
-  # Separator line
-  top_line = separator_char * separator_length
+    # Separator line
+    top_line = separator_char * separator_length
 
-  # Message line
-  message_line = separator_char * padding + " " + message + " " + separator_char * padding
-  if len(message_line) == 39:
-    message_line += separator_char
-  message_line = message_line[:separator_length]
+    # Message line
+    message_line = separator_char * padding + " " + message + " " + separator_char * padding
+    if len(message_line) == 39:
+        message_line += separator_char
+    message_line = message_line[:separator_length]
 
-  print(top_line)
-  print(message_line)
-  print(top_line,'\n')
+    print(top_line)
+    print(message_line)
+    print(top_line, '\n')
 
 
-def print_info(message, preview = None, max_length=80):
-  print(f"""\n=== {message}\n""")
-  if preview:
-    print("--- Preview:")
-    print(preview[:max_length] + "..." if len(preview) > max_length else preview)
+def print_info(message, preview=None, max_length=80):
+    print(f"""\n=== {message}\n""")
+    if preview:
+        print("--- Preview:")
+        print(preview[:max_length] + "..." if len(
+            preview) > max_length else preview)
 
 
 def notebook_mode_print(message_or_df):
-  if notebook_mode:
-    display(message_or_df) if isinstance(message_or_df, pd.DataFrame) else print(message_or_df)
+    if notebook_mode:
+        display(message_or_df) if isinstance(message_or_df,
+                                             pd.DataFrame) else print(
+            message_or_df)
+
 
 def dev_mode_print(message):
-  if dev_mode:
-    print(message)
+    if dev_mode:
+        print(message)
+
 
 """# Installation & Setup"""
 
@@ -68,9 +75,13 @@ if notebook_mode:
     print_section("installing deps")
 
     # download requirements.txt from repository
-    subprocess.run(["curl", "-O", "https://raw.githubusercontent.com/Dada-Tech/multimodal-video-trimming/main/requirements.txt"], check=True)
+    subprocess.run(["curl", "-O",
+                    "https://raw.githubusercontent.com/Dada-Tech/multimodal-video-trimming/main/requirements.txt"],
+                   check=True)
 
-    subprocess.check_call(['python', '-m', 'pip', 'install', '--no-cache-dir', '-r', 'requirements.txt'])
+    subprocess.check_call(
+        ['python', '-m', 'pip', 'install', '--no-cache-dir', '-r',
+         'requirements.txt'])
 
     print_info("installation done.")
 else:
@@ -80,21 +91,26 @@ from pydantic import BaseModel, validator, conint, confloat, ValidationError
 from enum import Enum
 import argparse
 
+
 class AutoSummary(BaseModel):
     summary_length_percentage: confloat(ge=0.2, le=0.5)
     min_summary_length: conint(ge=30, le=60)
     max_summary_length: conint(ge=100, le=1000)
 
+
 class DeletionMetric(BaseModel):
     threshold: confloat(ge=0.2, le=0.5)
 
+
 class Metric1(BaseModel):
     model_size: str
+
 
 class Hyperparameters(BaseModel):
     auto_summary: AutoSummary
     deletion_metric: DeletionMetric
     metric_1: Metric1
+
 
 """# Inputs & Hyperparameters
 
@@ -114,63 +130,71 @@ class Hyperparameters(BaseModel):
 """
 
 if notebook_mode:
-  video_input = "dataset/teamwork in the classroom.mov"
-  # video_output = "dataset/teamwork in the classroom_skimmed.mov"
-  video_export_max_length_seconds = 0 # set develop video max length to export a shortened version of the multimedia
+    video_input = "dataset/teamwork in the classroom.mov"
+    # video_output = "dataset/teamwork in the classroom_skimmed.mov"
+    video_export_max_length_seconds = 0  # set develop video max length to export a shortened version of the multimedia
 
-  # original was max_length=150, min_length=30
-  hyperparameters = {
-      "auto_summary": {
-        "summary_length_percentage": 0.3,
-        "min_summary_length": 30,
-        "max_summary_length": 600
-      },
-      "deletion_metric": {
-          "threshold": 0.3
-      },
-      "metric_1": {
-          "model_size": "base"
-      }
-  }
+    # original was max_length=150, min_length=30
+    hyperparameters = {
+        "auto_summary": {
+            "summary_length_percentage": 0.3,
+            "min_summary_length": 30,
+            "max_summary_length": 600
+        },
+        "deletion_metric": {
+            "threshold": 0.3
+        },
+        "metric_1": {
+            "model_size": "base"
+        }
+    }
 
 else:
-  # Define the argparse parser
-  parser = argparse.ArgumentParser(description="Process video and hyperparameters.")
+    # Define the argparse parser
+    parser = argparse.ArgumentParser(
+        description="Process video and hyperparameters.")
 
-  # Define the arguments for the inputs
-  parser.add_argument("--video_export_max_length_seconds", type=int, default=0, help="Maximum length of the video to export (in seconds)")
-  parser.add_argument("--video_input", "-i", type=str, required=True, help="Path to the video input file")
-  # parser.add_argument("--video_output", "-o", type=str, default=None, help="Optional path to save the output video")
+    # Define the arguments for the inputs
+    parser.add_argument("--video_export_max_length_seconds", type=int,
+                        default=0,
+                        help="Maximum length of the video to export (in seconds)")
+    parser.add_argument("--video_input", "-i", type=str, required=True,
+                        help="Path to the video input file")
+    # parser.add_argument("--video_output", "-o", type=str, default=None, help="Optional path to save the output video")
 
-  # Hyperparameters as individual arguments
-  parser.add_argument("--auto_summary_summary_length_percentage", type=float, default=0.3, help="Summary length as a percentage")
-  parser.add_argument("--auto_summary_min_summary_length", type=int, default=30, help="Minimum summary length")
-  parser.add_argument("--auto_summary_max_summary_length", type=int, default=600, help="Maximum summary length")
-  parser.add_argument("--deletion_metric_threshold", type=float, default=0.3, help="Threshold for deletion metric")
-  parser.add_argument("--metric_1_model_size", type=str, choices=["base", "large"], default="base", help="Model size for metric 1")
+    # Hyperparameters as individual arguments
+    parser.add_argument("--auto_summary_summary_length_percentage", type=float,
+                        default=0.3, help="Summary length as a percentage")
+    parser.add_argument("--auto_summary_min_summary_length", type=int,
+                        default=30, help="Minimum summary length")
+    parser.add_argument("--auto_summary_max_summary_length", type=int,
+                        default=600, help="Maximum summary length")
+    parser.add_argument("--deletion_metric_threshold", type=float, default=0.3,
+                        help="Threshold for deletion metric")
+    parser.add_argument("--metric_1_model_size", type=str,
+                        choices=["base", "large"], default="base",
+                        help="Model size for metric 1")
 
-  # Parse arguments
-  args = parser.parse_args()
+    # Parse arguments
+    args = parser.parse_args()
 
-  # Now you can use the parsed arguments
-  video_export_max_length_seconds = args.video_export_max_length_seconds
-  video_input = args.video_input
+    # Now you can use the parsed arguments
+    video_export_max_length_seconds = args.video_export_max_length_seconds
+    video_input = args.video_input
 
-  hyperparameters = {
-      "auto_summary": {
-          "summary_length_percentage": args.auto_summary_summary_length_percentage,
-          "min_summary_length": args.auto_summary_min_summary_length,
-          "max_summary_length": args.auto_summary_max_summary_length
-      },
-      "deletion_metric": {
-          "threshold": args.deletion_metric_threshold
-      },
-      "metric_1": {
-          "model_size": args.metric_1_model_size
-      }
-  }
-
-
+    hyperparameters = {
+        "auto_summary": {
+            "summary_length_percentage": args.auto_summary_summary_length_percentage,
+            "min_summary_length": args.auto_summary_min_summary_length,
+            "max_summary_length": args.auto_summary_max_summary_length
+        },
+        "deletion_metric": {
+            "threshold": args.deletion_metric_threshold
+        },
+        "metric_1": {
+            "model_size": args.metric_1_model_size
+        }
+    }
 
 # Validate Hyperparameters
 try:
@@ -203,9 +227,10 @@ import torch
 import torchaudio
 import torch.nn.functional as F
 from transformers import \
-LongformerTokenizer, LongformerModel, LongformerForSequenceClassification, LongformerConfig, \
-RobertaTokenizer, RobertaForTokenClassification, TrainingArguments, \
-LEDTokenizer, LEDForConditionalGeneration
+    LongformerTokenizer, LongformerModel, LongformerForSequenceClassification, \
+    LongformerConfig, \
+    RobertaTokenizer, RobertaForTokenClassification, TrainingArguments, \
+    LEDTokenizer, LEDForConditionalGeneration
 
 # Text
 import pytextrank
@@ -240,7 +265,6 @@ filename = os.path.basename(video_input)
 filename_without_extension = os.path.splitext(filename)[0]
 filename_video_extension = video = os.path.splitext(video_input)[1]
 
-
 filename_video_input = filename
 filename_subtitles_output = filename_without_extension + ".srt"
 filename_audio_output = filename_without_extension + ".wav"
@@ -259,14 +283,16 @@ sentences = ''
 
 """# Functions"""
 
+
 def drop_if_exists(df, col_name):
-  """Drops a column from a DataFrame if it exists
-  Args:
-    df: The pandas DataFrame to modify.
-    col_name: The name of the column to drop and insert.
-  """
-  if col_name in df.columns:
-    df.drop(col_name, axis=1, inplace=True)
+    """Drops a column from a DataFrame if it exists
+    Args:
+      df: The pandas DataFrame to modify.
+      col_name: The name of the column to drop and insert.
+    """
+    if col_name in df.columns:
+        df.drop(col_name, axis=1, inplace=True)
+
 
 # # Test Question-Answering Evaluation
 
@@ -325,11 +351,11 @@ def drop_if_exists(df, col_name):
 """
 
 if notebook_mode:
-  from google.colab import files
+    from google.colab import files
 
-  # Google Drive Dataset Location
-  folder_id = '1k7DLJPl1xz9lpU4l3dZYtPe1XawhrXeC' # taken from drive.google.com/drive/u/1/folders/1k7D...(this part)
-  gdown.download_folder(id=folder_id, quiet=False, use_cookies=False)
+    # Google Drive Dataset Location
+    folder_id = '1k7DLJPl1xz9lpU4l3dZYtPe1XawhrXeC'  # taken from drive.google.com/drive/u/1/folders/1k7D...(this part)
+    gdown.download_folder(id=folder_id, quiet=False, use_cookies=False)
 
 """# Preprocessing"""
 
@@ -341,7 +367,9 @@ print_section("Preprocessing")
 # !ffmpeg -y -i "$video_input" -vn -acodec pcm_s16le -ar 44100 -ac 2 "$audio_output"
 print_info("extracting audio from video")
 
-subprocess.run(['ffmpeg', '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True)
+subprocess.run(
+    ['ffmpeg', '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar',
+     '44100', '-ac', '2', audio_output], check=True)
 # subprocess.run(["ffmpeg", '-y', '-i', video_input, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_output], check=True, capture_output=True)
 
 """## Audio - SRT File Generation
@@ -368,6 +396,7 @@ each **`subtitle`** in the subtitles array has the following properties:
    - `''` (Empty string, or sometimes contains specific formatting codes)
 """
 
+
 def seconds_to_srt_timestamp(seconds):
     """
     Extract hours, minutes, seconds, and milliseconds
@@ -382,39 +411,42 @@ def seconds_to_srt_timestamp(seconds):
     # Format as HH:MM:SS,MS
     return f"{hours:02}:{minutes:02}:{int(seconds):02},{milliseconds:03}"
 
+
 # Select device (GPU if available, otherwise CPU)
-language="en"
+language = "en"
 
 from multiprocessing import Queue
 
 # GPU
 if torch.cuda.is_available():
-  device = "cuda"
-  compute_type = "float16"
-  batch_size = 16
-  model_whisperx = "base"
+    device = "cuda"
+    compute_type = "float16"
+    batch_size = 16
+    model_whisperx = "base"
 
-  print_info(f"""Generating SRT File with {device}...""")
+    print_info(f"""Generating SRT File with {device}...""")
 else:
-  device = "cpu"
-  compute_type = "int8"
-  batch_size = 1
-  model_whisperx = "tiny"
+    device = "cpu"
+    compute_type = "int8"
+    batch_size = 1
+    model_whisperx = "tiny"
 
-  queue = Queue(maxsize=200)
+    queue = Queue(maxsize=200)
 
-  print_info(f"""WARNING: Generating SRT File with {device}...""")
-
+    print_info(f"""WARNING: Generating SRT File with {device}...""")
 
 # Model WhisperX
-model = whisperx.load_model(model_whisperx, device=device, language=language, compute_type=compute_type) # Choose "base" or "large" model
+model = whisperx.load_model(model_whisperx, device=device, language=language,
+                            compute_type=compute_type)  # Choose "base" or "large" model
 
 # Transcribe audio
 aligned_segments = model.transcribe(audio_output, batch_size=batch_size)
 
 # Align with forced alignment
-alignment_model, metadata = whisperx.load_align_model(language_code=aligned_segments["language"], device=device)
-aligned_segments = whisperx.align(aligned_segments["segments"], alignment_model, metadata, audio_output, device)
+alignment_model, metadata = whisperx.load_align_model(
+    language_code=aligned_segments["language"], device=device)
+aligned_segments = whisperx.align(aligned_segments["segments"], alignment_model,
+                                  metadata, audio_output, device)
 
 # Generate SRT file with aligned sentences
 with open(subtitles_output, "w") as f:
@@ -436,6 +468,7 @@ with open(subtitles_output, "r", encoding="utf-8") as f:
 
 """## Text - Sentence Segmentation"""
 
+
 def format_timedelta(timedelta_obj):
     """Formats a datetime.timedelta object into HH:MM:SS.mmm timestamp.
 
@@ -452,6 +485,7 @@ def format_timedelta(timedelta_obj):
     milliseconds = int((total_seconds % 1) * 1000)  # Get milliseconds
 
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}"
+
 
 sentences = []
 for i, segment in enumerate(subtitles):
@@ -496,14 +530,15 @@ text = paragraph
 inputs = tokenizer(text, return_tensors="pt", max_length=4096, truncation=True)
 
 # Calculate dynamic summary length
-summary_length_percentage = hyperparameters["auto_summary"]["summary_length_percentage"]
+summary_length_percentage = hyperparameters["auto_summary"][
+    "summary_length_percentage"]
 min_summary_length = hyperparameters["auto_summary"]["min_summary_length"]
 max_summary_length = hyperparameters["auto_summary"]["max_summary_length"]
 
-
 input_length = len(inputs["input_ids"][0])
 summary_length = int(input_length * summary_length_percentage)
-summary_length = max(min_summary_length, min(summary_length, max_summary_length))
+summary_length = max(min_summary_length,
+                     min(summary_length, max_summary_length))
 
 # Summary Generation
 summary_ids = model.generate(
@@ -515,7 +550,8 @@ summary_ids = model.generate(
     early_stopping=True
 )
 
-paragraph_summarized = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+paragraph_summarized = tokenizer.decode(summary_ids[0],
+                                        skip_special_tokens=True)
 print_info("paragraph summarized", paragraph_summarized)
 
 # Simple Metrics
@@ -543,21 +579,25 @@ print_section("Metric 1: Sentence-Summarized Relevancy")
 attention_window = 256
 model_size = hyperparameters["metric_1"]["model_size"]
 model_name_lf = f'allenai/longformer-{model_size}-4096'
-config = LongformerConfig.from_pretrained(model_name_lf, attention_window=attention_window)
+config = LongformerConfig.from_pretrained(model_name_lf,
+                                          attention_window=attention_window)
 
 # model: Longformer
 model_lf = LongformerModel.from_pretrained(model_name_lf, config=config)
-tokenizer_lf = LongformerTokenizer.from_pretrained(model_name_lf, model_max_length=attention_window)
+tokenizer_lf = LongformerTokenizer.from_pretrained(model_name_lf,
+                                                   model_max_length=attention_window)
 
 # 2: Tokenization
 paragraph_tokens = tokenizer_lf(paragraph_summarized, return_tensors='pt')
 # sentence_tokens = [tokenizer_lf(sentence, return_tensors='pt') for sentence in sentences]
 
-sentence_tokens = tokenizer_lf(sentences, padding=True, truncation=True, return_tensors='pt')
+sentence_tokens = tokenizer_lf(sentences, padding=True, truncation=True,
+                               return_tensors='pt')
 
 # 3: Embedding
 with torch.no_grad():  # Disable gradient computation for efficiency
-    paragraph_embedding = model_lf(**paragraph_tokens).last_hidden_state[:, 0, :]  # Get the [CLS] token embedding
+    paragraph_embedding = model_lf(**paragraph_tokens).last_hidden_state[:, 0,
+                          :]  # Get the [CLS] token embedding
 
     # Process batched sentence tokens
     sentence_embeddings = model_lf(**sentence_tokens).last_hidden_state[:, 0, :]
@@ -567,15 +607,21 @@ The [CLS] (classification) token is often used in transformer models to represen
 """
 
 # 4: Relevance scores
-relevance_scores = [torch.cosine_similarity(paragraph_embedding, sentence_embedding).item() for sentence_embedding in sentence_embeddings]
+relevance_scores = [
+    torch.cosine_similarity(paragraph_embedding, sentence_embedding).item() for
+    sentence_embedding in sentence_embeddings]
 
 # Normalization: min-max normalization
 min_score = min(relevance_scores)
 max_score = max(relevance_scores)
-normalized_scores = [(score - min_score) / (max_score - min_score) for score in relevance_scores]
+normalized_scores = [(score - min_score) / (max_score - min_score) for score in
+                     relevance_scores]
 
 # round
-normalized_scores = [np.format_float_positional(score, precision=2, unique=False, fractional=False, trim='k') for score in normalized_scores]
+normalized_scores = [
+    np.format_float_positional(score, precision=2, unique=False,
+                               fractional=False, trim='k') for score in
+    normalized_scores]
 
 # 5: Display Results
 drop_if_exists(df_sentences, "metric_1_score")
@@ -743,8 +789,8 @@ drop_if_exists(df_sentences, "metric_final")
 df_sentences.insert(0, "metric_final", 1)
 
 # Metric 1 Apply
-df_sentences['metric_final'] = 1 * df_sentences['metric_final'] * df_sentences['metric_1_score'].astype(float)
-
+df_sentences['metric_final'] = 1 * df_sentences['metric_final'] * df_sentences[
+    'metric_1_score'].astype(float)
 
 notebook_mode_print(df_sentences)
 
@@ -764,14 +810,15 @@ filtered_df = filtered_df_to_keep
 
 # Timestamps
 # sample_timestamps = [('00:00:00.00','00:00:01.25'), ('00:00:08.766', '00:00:11.042')]
-sentence_timestamps = list(zip(filtered_df['start_time'], filtered_df['end_time']))
-
+sentence_timestamps = list(
+    zip(filtered_df['start_time'], filtered_df['end_time']))
 
 notebook_mode_print(sentence_timestamps)
 
 """### Text to Keep"""
 
-notebook_mode_print(filtered_df_to_keep[['metric_final', 'start_time', 'end_time', 'sentence']])
+notebook_mode_print(
+    filtered_df_to_keep[['metric_final', 'start_time', 'end_time', 'sentence']])
 
 text_to_keep = " ".join(filtered_df_to_keep['sentence'].tolist())
 
@@ -779,7 +826,8 @@ notebook_mode_print(text_to_keep)
 
 """### Text to Delete"""
 
-notebook_mode_print(filtered_df_to_delete[['metric_final', 'start_time', 'end_time', 'sentence']])
+notebook_mode_print(filtered_df_to_delete[
+                        ['metric_final', 'start_time', 'end_time', 'sentence']])
 
 text_to_delete = " ".join(filtered_df_to_delete['sentence'].tolist())
 
@@ -792,6 +840,7 @@ notebook_mode_print(text_to_delete)
 """
 
 print_section("Postprocessing")
+
 
 def ts_to_s(timestamp):
     """Converts a timestamp string in HH:MM:SS.mmm format to seconds.
@@ -806,9 +855,11 @@ def ts_to_s(timestamp):
     seconds, milliseconds = seconds_milliseconds.split('.')
 
     # Convert to seconds
-    total_seconds = int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(milliseconds) / 1000.0
+    total_seconds = int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(
+        milliseconds) / 1000.0
 
     return total_seconds
+
 
 def skim_video(input_video, output_video, segments_to_retain):
     """
@@ -842,12 +893,13 @@ def skim_video(input_video, output_video, segments_to_retain):
         "-vf", f"select='{video_select_filter}',setpts=N/FRAME_RATE/TB",
         "-af", f"aselect='{audio_select_filter}',asetpts=N/SR/TB",
         "-threads", str(os.cpu_count()),
-         "-preset", "ultrafast",
+        "-preset", "ultrafast",
         output_video
     ]
 
     # Run the FFmpeg command and capture the output
-    result = subprocess.run(ffmpeg_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(ffmpeg_command, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
 
     # Check if FFmpeg finished successfully or if there were errors
     if result.returncode != 0:
@@ -856,10 +908,13 @@ def skim_video(input_video, output_video, segments_to_retain):
     else:
         print_info("Video processed successfully.")
 
+
 def get_video_length(input_video):
     """Get the duration (length) of a video file using ffmpeg-python."""
-    probe = ffmpeg.probe(input_video, v='error', select_streams='v:0', show_entries='format=duration')
+    probe = ffmpeg.probe(input_video, v='error', select_streams='v:0',
+                         show_entries='format=duration')
     return float(probe['format']['duration'])
+
 
 # def get_video_length(video_input):
 
@@ -914,18 +969,21 @@ def generate_keep_timestamps(timestamps_to_remove, video_length=None):
 
     return timestamps
 
+
 # Timestamp pre-processing
 original_video_length = get_video_length(video_input)
 
 # Dev mode: export shorter video
-video_length = min(original_video_length, video_export_max_length_seconds) if video_export_max_length_seconds > 0 else original_video_length
+video_length = min(original_video_length,
+                   video_export_max_length_seconds) if video_export_max_length_seconds > 0 else original_video_length
 
 # Trim Method 1: Video with sentences to remove, removed
 # timestamps_to_remove = list(map(lambda x: (ts_to_s(x[0]), ts_to_s(x[1])), sentence_timestamps))
 # timestamps_to_keep = generate_keep_timestamps(timestamps_to_remove, video_length)
 
 # Trim method 2: Video of only sentences to keep
-timestamps_to_keep = list(map(lambda x: (ts_to_s(x[0]), ts_to_s(x[1])), sentence_timestamps))
+timestamps_to_keep = list(
+    map(lambda x: (ts_to_s(x[0]), ts_to_s(x[1])), sentence_timestamps))
 
 # print(f"Timestamps to remove: {timestamps_to_remove}")
 notebook_mode_print(f"Timestamps to keep: {timestamps_to_keep}")
@@ -935,8 +993,8 @@ skim_video(video_input, video_output_skimmed, timestamps_to_keep)
 
 # Download
 if notebook_mode:
-  print_info("Downloading video...")
-  files.download(video_output_skimmed)
+    print_info("Downloading video...")
+    files.download(video_output_skimmed)
 
 # Simple Metrics
 print_section("Simple Metrics")
@@ -946,5 +1004,6 @@ print(f"Original Video Length: {original_video_length:.2f}s\n")
 
 skimmed_video_length = get_video_length(video_output_skimmed)
 
-summarization_ratio = (original_video_length - skimmed_video_length) / original_video_length
+summarization_ratio = (
+                                  original_video_length - skimmed_video_length) / original_video_length
 print(f"Summarized/Original Video Length Ratio: {summarization_ratio:.2f}")
