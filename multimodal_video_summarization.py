@@ -133,6 +133,9 @@ if notebook_mode:
     video_input = "dataset/teamwork in the classroom.mov"
     # video_output = "dataset/teamwork in the classroom_skimmed.mov"
     video_export_max_length_seconds = 0  # set develop video max length to export a shortened version of the multimedia
+    export_original_text = True
+    export_trimmed_text = True
+    export_summarized_text = True
 
     # original was max_length=150, min_length=30
     hyperparameters = {
@@ -160,6 +163,12 @@ else:
                         help="Maximum length of the video to export (in seconds)")
     parser.add_argument("--video_input", "-i", type=str, required=True,
                         help="Path to the video input file")
+    parser.add_argument("--export_original_text", action="store_true",
+                        help="Export original text (from video)")
+    parser.add_argument("--export_trimmed_text", action="store_true",
+                        help="Export trimmed text")
+    parser.add_argument("--export_summarized_text", action="store_true",
+                        help="Export summarized text")
     # parser.add_argument("--video_output", "-o", type=str, default=None, help="Optional path to save the output video")
 
     # Hyperparameters as individual arguments
@@ -181,6 +190,9 @@ else:
     # Now you can use the parsed arguments
     video_export_max_length_seconds = args.video_export_max_length_seconds
     video_input = args.video_input
+    export_original_text = args.export_original_text
+    export_trimmed_text = args.export_trimmed_text
+    export_summarized_text = args.export_summarized_text
 
     hyperparameters = {
         "auto_summary": {
@@ -255,6 +267,9 @@ print_info("downloading NLTK libraries...")
 nltk.download('punkt')
 nltk.download('punkt_tab')
 
+# Load the spaCy model
+sp = spacy.load('en_core_web_sm')
+
 print_info("downloading done")
 
 """# Variables"""
@@ -270,6 +285,13 @@ filename_subtitles_output = filename_without_extension + ".srt"
 filename_audio_output = filename_without_extension + ".wav"
 filename_audio_output_skimmed = filename_without_extension + "_skimmed.wav"
 filename_video_output_skimmed = filename_without_extension + "_skimmed" + filename_video_extension
+
+filename_paragraph_original = os.path.join(full_base,
+                                           filename_without_extension + "_paragraph_original.txt")
+filename_paragraph_trimmed = os.path.join(full_base,
+                                          filename_without_extension + "_paragraph_trimmed.txt")
+filename_paragraph_summarized = os.path.join(full_base,
+                                             filename_without_extension + "_paragraph_summarized.txt")
 
 subtitles_output = os.path.join(full_base, filename_subtitles_output)
 audio_output = os.path.join(full_base, filename_audio_output)
@@ -294,54 +316,22 @@ def drop_if_exists(df, col_name):
         df.drop(col_name, axis=1, inplace=True)
 
 
-# # Test Question-Answering Evaluation
+def paragraph_to_file(text, filename):
+    try:
+        # Process the text with spaCy to split into sentences
+        doc = sp(text)
 
-# from transformers import pipeline
+        sentences = [sent.text.strip() for sent in doc.sents]
 
-# # Load the question-answering pipeline
-# qa_pipeline = pipeline(
-#     "question-answering",
-#     # model="distilbert-base-cased-distilled-squad"
-#     model="valhalla/longformer-base-4096-finetuned-squadv1"
-#   )
+        # Write each sentence to the file
+        with open(filename, 'w') as file:
+            for sentence in sentences:
+                file.write(sentence + "\n")
 
-# # Example texts
-# unsummarized_text = """
-# Albert Einstein was a theoretical physicist born in Germany. He developed the theory of relativity,
-# one of the two pillars of modern physics. He won the Nobel Prize in Physics in 1921.
-# """
+        print(f"Export Successful: {filename}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-# summarized_text = """
-# Einstein, a German physicist, developed relativity and won the 1921 Nobel Prize.
-# """
-
-# # Define a list of questions to ask
-# questions = [
-#     "Who developed the theory of relativity?",
-#     "When did he win the Nobel Prize?",
-#     "Where was he born?"
-# ]
-
-# # Function to get answers from a given text
-# def evaluate_qa(text, questions):
-#     answers = {}
-#     for question in questions:
-#         result = qa_pipeline(question=question, context=text)
-#         answers[question] = result['answer']
-#     return answers
-
-# # Get answers for both texts
-# answers_unsummarized = evaluate_qa(unsummarized_text, questions)
-# answers_summarized = evaluate_qa(summarized_text, questions)
-
-# # Compare the answers
-# print("Answers from Unsummarized Text:")
-# for q, a in answers_unsummarized.items():
-#     print(f"{q} -> {a}")
-
-# print("\nAnswers from Summarized Text:")
-# for q, a in answers_summarized.items():
-#     print(f"{q} -> {a}")
 
 """# Datasets
 
@@ -740,9 +730,60 @@ using TextRank
 
 # display(df_phrases)
 
+"""## Metric 5: Question-Answering Evaluation"""
+
+# from transformers import pipeline
+# from sentence_transformers import SentenceTransformer, util
+
+
+# # Load the question-answering pipeline
+# # qa_pipeline = pipeline(
+# #     "question-answering",
+# #     model="distilbert-base-cased-distilled-squad"
+# #     # model="valhalla/longformer-base-4096-finetuned-squadv1"
+# #   )
+
+# question_generation_pipeline = pipeline("text2text-generation", model="t5-small")
+# # question_generation_pipeline = pipeline("text2text-generation", model="facebook/bart-large")
+# # question_generation_pipeline = pipeline("text2text-generation", model="valhalla/t5-base-qa-qg-hl")
+
+# unsummarized_text = """
+# Albert Einstein was a theoretical physicist born in Germany. He developed the theory of relativity,
+# one of the two pillars of modern physics. He won the Nobel Prize in Physics in 1921.
+# """
+
+# # Prompt BART to generate questions
+# prompt = f"translate english to french: {unsummarized_text}"
+
+# # Generate questions
+# # generated_questions = question_generation_pipeline(prompt)
+# generated_questions = question_generation_pipeline(
+#     prompt,
+#     max_length=50,           # Maximum length of generated text (in tokens)
+#     num_beams=5,             # Enable beam search with 5 beams
+#     num_return_sequences=1)  # Generate 3 different sequences
+
+# generated_questions
+# # Print the generated questions
+# print(generated_questions)
+
+# answers = {}
+
+# for question in questions:
+#     result = qa_pipeline(question=question, context=text)
+#     if result['score'] >= threshold:
+#         answers[question] = result  # Store the entire answer object
+#     else:
+#         answers[question] = {"answer": "I don't know", "score": result['score']}
+
+# # Display generated questions and answers
+# print("Generated Questions and Answers from Unsummarized Text:")
+# for q, a in answers_unsummarized.items():
+#     print(f"Q: {q}\nA: {a}\n")
+
 """# Audio
 
-## Metric 5: Silence Detection
+## Metric 6: Silence Detection
 * From the Paragraph boundaries, get the time in aduio that we care about
 * For each time in audio we care about, analyze if they are low volume
 
@@ -821,6 +862,7 @@ notebook_mode_print(
     filtered_df_to_keep[['metric_final', 'start_time', 'end_time', 'sentence']])
 
 text_to_keep = " ".join(filtered_df_to_keep['sentence'].tolist())
+paragraph_trimmed = text_to_keep
 
 notebook_mode_print(text_to_keep)
 
@@ -996,6 +1038,27 @@ if notebook_mode:
     print_info("Downloading video...")
     files.download(video_output_skimmed)
 
+# Export original text
+if export_original_text:
+    paragraph_to_file(paragraph, filename_paragraph_original)
+
+    if notebook_mode:
+        files.download(filename_paragraph_original)
+
+# Export trimmed text
+if export_trimmed_text:
+    paragraph_to_file(paragraph_trimmed, filename_paragraph_trimmed)
+
+    if notebook_mode:
+        files.download(filename_paragraph_trimmed)
+
+# Export summarized text
+if export_summarized_text:
+    paragraph_to_file(paragraph_summarized, filename_paragraph_summarized)
+
+    if notebook_mode:
+        files.download(filename_paragraph_summarized)
+
 # Simple Metrics
 print_section("Simple Metrics")
 
@@ -1003,6 +1066,7 @@ original_video_length = get_video_length(video_input)
 print(f"Original Video Length: {original_video_length:.2f}s\n")
 
 skimmed_video_length = get_video_length(video_output_skimmed)
+print(f"Skimmed Video Length: {skimmed_video_length:.2f}s\n")
 
 summarization_ratio = (
                                   original_video_length - skimmed_video_length) / original_video_length
