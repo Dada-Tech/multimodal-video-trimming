@@ -268,6 +268,7 @@ nltk.download('punkt')
 nltk.download('punkt_tab')
 
 # Load the spaCy model
+spacy.cli.download("en_core_web_sm")
 sp = spacy.load('en_core_web_sm')
 
 print_info("downloading done")
