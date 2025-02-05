@@ -15,5 +15,6 @@ spacy==3.8.3
 transformers==4.39.3
 srt==3.5.3
 ffmpeg-python==0.2.0
+scenedetect[opencv-headless]==0.6.5.2
 #git+https://github.com/m-bain/whisperx.git@9b9e03c4cc88ddfbbdf5f896918e57dc0298db41
 git+https://github.com/m-bain/whisperx.git
