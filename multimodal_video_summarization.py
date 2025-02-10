@@ -191,14 +191,14 @@ if notebook_mode:
             "max_summary_length": 600
         },
         "deletion_metric": {
-            "threshold": 0.3
+            "threshold": 0.4
         },
         "metric_1": {
             "model_size": "base",
             "weight": 1
         },
         "metric_2": {
-            "weight": 0.5,
+            "weight": 0.8,
             "min_scene_len": 15,
             "threshold": 25
         }
@@ -230,14 +230,14 @@ else:
                         default=30, help="Minimum summary length")
     parser.add_argument("--auto_summary_max_summary_length", type=int,
                         default=600, help="Maximum summary length")
-    parser.add_argument("--deletion_metric_threshold", type=float, default=0.3,
+    parser.add_argument("--deletion_metric_threshold", type=float, default=0.4,
                         help="Threshold for deletion metric")
     parser.add_argument("--metric_1_model_size", type=str,
                         choices=["base", "large"], default="base",
                         help="Model size for metric 1")
     parser.add_argument("--metric_1_weight", type=float, default=1.0,
                         help="Weight for metric 1 (contribution to final score)")
-    parser.add_argument("--metric_2_weight", type=float, default=0.5,
+    parser.add_argument("--metric_2_weight", type=float, default=0.8,
                         help="Weight for metric 2 (contribution to final score)")
     parser.add_argument("--metric_2_min_scene_len", type=int, default=15,
                         help="Minimum scene length for metric 2")
@@ -1039,6 +1039,21 @@ df_sentences['metric_final'] = df_sentences['metric_1_weighted'] + df_sentences[
     'metric_2_weighted']
 df_sentences["metric_final"] = df_sentences["metric_final"].round(2)
 
+# Reorder
+df_sentences = df_sentences[[
+    'metric_final',
+    'metric_1_weighted',
+    'metric_1_score',
+    'metric_2_weighted',
+    'metric_2_score',
+    'scene_number_start',
+    'scene_number_end',
+    'base_idx',
+    'start_time',
+    'end_time',
+    'sentence'
+]].copy()
+
 notebook_mode_print(df_sentences)
 
 """### Deletion Metric"""
@@ -1080,6 +1095,9 @@ notebook_mode_print(filtered_df_to_delete[
 text_to_delete = " ".join(filtered_df_to_delete['sentence'].tolist())
 
 notebook_mode_print(text_to_delete)
+
+notebook_mode_print(
+    f"text deletion {round(len(text_to_delete) / (len(text_to_delete) + len(text_to_keep)), 2) * 100}%")
 
 """# PostProcessing
 
