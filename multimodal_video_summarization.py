@@ -177,7 +177,6 @@ class Hyperparameters(BaseModel):
 
 if notebook_mode:
     video_input = "dataset/teamwork in the classroom.mov"
-    # video_output = "dataset/teamwork in the classroom_skimmed.mov"
     video_export_max_length_seconds = 0  # set develop video max length to export a shortened version of the multimedia
     export_original_text = True
     export_trimmed_text = True
@@ -210,18 +209,19 @@ else:
         description="Process video and hyperparameters.")
 
     # Define the arguments for the inputs
+    parser.add_argument("--video_input", "-i", type=str, required=True,
+                        help="Path to the video input file")
+    parser.add_argument("--video_output", "-o", type=str, default=None,
+                        help="Path to save the output video")
     parser.add_argument("--video_export_max_length_seconds", type=int,
                         default=0,
                         help="Maximum length of the video to export (in seconds)")
-    parser.add_argument("--video_input", "-i", type=str, required=True,
-                        help="Path to the video input file")
     parser.add_argument("--export_original_text", action="store_true",
                         help="Export original text (from video)")
     parser.add_argument("--export_trimmed_text", action="store_true",
                         help="Export trimmed text")
     parser.add_argument("--export_summarized_text", action="store_true",
                         help="Export summarized text")
-    # parser.add_argument("--video_output", "-o", type=str, default=None, help="Optional path to save the output video")
 
     # Hyperparameters as individual arguments
     parser.add_argument("--auto_summary_summary_length_percentage", type=float,
@@ -250,6 +250,7 @@ else:
     # Now you can use the parsed arguments
     video_export_max_length_seconds = args.video_export_max_length_seconds
     video_input = args.video_input
+    video_output = args.video_output
     export_original_text = args.export_original_text
     export_trimmed_text = args.export_trimmed_text
     export_summarized_text = args.export_summarized_text
@@ -348,13 +349,15 @@ filename = os.path.basename(video_input)
 filename_without_extension = os.path.splitext(filename)[0]
 filename_video_extension = video = os.path.splitext(video_input)[1]
 
+# Video Input
 filename_video_input = filename
+
+# Output Filenames
 filename_subtitles_output = filename_without_extension + ".srt"
 filename_audio_output = filename_without_extension + ".wav"
 filename_audio_output_skimmed = filename_without_extension + "_skimmed.wav"
-filename_video_output_skimmed = filename_without_extension + "_skimmed" + filename_video_extension
 
-# Text
+# Text Output Filenmes
 filename_paragraph_original = os.path.join(full_base,
                                            filename_without_extension + "_paragraph_original.txt")
 filename_paragraph_trimmed = os.path.join(full_base,
@@ -362,10 +365,18 @@ filename_paragraph_trimmed = os.path.join(full_base,
 filename_paragraph_summarized = os.path.join(full_base,
                                              filename_without_extension + "_paragraph_summarized.txt")
 
+# Output
 subtitles_output = os.path.join(full_base, filename_subtitles_output)
 audio_output = os.path.join(full_base, filename_audio_output)
 audio_output_skimmed = os.path.join(full_base, filename_audio_output_skimmed)
-video_output_skimmed = os.path.join(full_base, filename_video_output_skimmed)
+
+if video_output:
+    filename_video_output_skimmed = os.path.basename(video_output)
+    video_output_skimmed = video_output
+else:
+    filename_video_output_skimmed = filename_without_extension + "_skimmed" + filename_video_extension
+    video_output_skimmed = os.path.join(full_base,
+                                        filename_video_output_skimmed)
 
 video = ''
 audio = ''
