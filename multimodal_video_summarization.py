@@ -120,7 +120,7 @@ class AutoSummary(BaseModel):
 
 
 class DeletionMetric(BaseModel):
-    threshold: confloat(ge=0.2, le=0.5)
+    threshold: confloat(ge=0.05, le=0.5)
 
 
 class Metric1(BaseModel):
@@ -155,7 +155,7 @@ class Hyperparameters(BaseModel):
 ### Deletion Metric
 
 *   **`threshold`**: 0.3
-    *   The minimum relevance score a sentence needs to have to be included in the final output. Sentences below this threshold are considered for removal.
+    *   Deleting the bottom **`n`** percent of scores.
 
 ### Metric 1
 *   **`weight`**: Values between `0` and `1.0`
@@ -177,6 +177,7 @@ class Hyperparameters(BaseModel):
 
 if notebook_mode:
     video_input = "dataset/teamwork in the classroom.mov"
+    video_output = "dataset/teamwork in the classroom_skimmed.mov"
     video_export_max_length_seconds = 0  # set develop video max length to export a shortened version of the multimedia
     export_original_text = True
     export_trimmed_text = True
@@ -190,14 +191,14 @@ if notebook_mode:
             "max_summary_length": 600
         },
         "deletion_metric": {
-            "threshold": 0.4
+            "threshold": 0.2
         },
         "metric_1": {
             "model_size": "base",
             "weight": 1
         },
         "metric_2": {
-            "weight": 0.8,
+            "weight": 0.3,
             "min_scene_len": 15,
             "threshold": 25
         }
@@ -230,14 +231,14 @@ else:
                         default=30, help="Minimum summary length")
     parser.add_argument("--auto_summary_max_summary_length", type=int,
                         default=600, help="Maximum summary length")
-    parser.add_argument("--deletion_metric_threshold", type=float, default=0.4,
+    parser.add_argument("--deletion_metric_threshold", type=float, default=0.2,
                         help="Threshold for deletion metric")
     parser.add_argument("--metric_1_model_size", type=str,
                         choices=["base", "large"], default="base",
                         help="Model size for metric 1")
     parser.add_argument("--metric_1_weight", type=float, default=1.0,
                         help="Weight for metric 1 (contribution to final score)")
-    parser.add_argument("--metric_2_weight", type=float, default=0.8,
+    parser.add_argument("--metric_2_weight", type=float, default=0.3,
                         help="Weight for metric 2 (contribution to final score)")
     parser.add_argument("--metric_2_min_scene_len", type=int, default=15,
                         help="Minimum scene length for metric 2")
@@ -312,9 +313,10 @@ from transformers import \
     LEDTokenizer, LEDForConditionalGeneration
 
 # Text
+import string
 import pytextrank
 import nltk
-from nltk.tokenize import sent_tokenize
+from nltk.tokenize import sent_tokenize, word_tokenize
 import spacy
 import srt
 
@@ -1019,6 +1021,16 @@ OR
 
 """# Final Score - Metric Weighting"""
 
+
+# Define the function to count words while removing punctuation
+def count_words_without_punctuation(sentence):
+    words = word_tokenize(sentence)
+
+    # Filter out punctuation
+    words = [word for word in words if word not in string.punctuation]
+    return len(words)
+
+
 # Normalized Weigthed average
 w1 = hyperparameters['metric_1']['weight']
 w2 = hyperparameters['metric_2']['weight']
@@ -1072,21 +1084,69 @@ notebook_mode_print(df_sentences)
 # Threshold
 threshold = hyperparameters['deletion_metric']['threshold']
 
-filtered_df_to_keep = df_sentences[df_sentences['metric_final'] >= threshold]
-filtered_df_to_delete = df_sentences[df_sentences['metric_final'] < threshold]
-filtered_df = filtered_df_to_keep
+# Deletion under static threshold
+# filtered_df_to_keep = df_sentences[df_sentences['metric_final'] >= threshold]
+# filtered_df_to_delete = df_sentences[df_sentences['metric_final'] < threshold]
+# filtered_df = filtered_df_to_keep
 
 # Percentage
-# percentage_cutoff = 0.2
-# percentile_20 = df_sentences['metric_final'].quantile(0.2)
-# filtered_df = df_sentences[df_sentences['metric_final'] <= percentile_20]
+percentile = df_sentences['metric_final'].quantile(threshold)
+filtered_df_to_keep = df_sentences[df_sentences['metric_final'] >= percentile]
+filtered_df_to_delete = df_sentences[df_sentences['metric_final'] < percentile]
 
 # Timestamps
 # sample_timestamps = [('00:00:00.00','00:00:01.25'), ('00:00:08.766', '00:00:11.042')]
 sentence_timestamps = list(
-    zip(filtered_df['start_time'], filtered_df['end_time']))
+    zip(filtered_df_to_keep['start_time'], filtered_df_to_keep['end_time']))
 
 notebook_mode_print(sentence_timestamps)
+
+threshold = hyperparameters['deletion_metric']['threshold']
+
+filtered_df = df_sentences.copy()
+
+# Count words of each sentence
+filtered_df['word_count'] = filtered_df['sentence'].apply(
+    count_words_without_punctuation)
+
+# Target word count to keep (e.g., 80% of total words when threshold = 20%)
+total_word_count = filtered_df['word_count'].sum()
+target_word_count = round(total_word_count * (1 - threshold))
+
+# Sort the DataFrame by 'metric_final' (low to high score)
+filtered_df = filtered_df.sort_values(by='metric_final')
+
+# Initialize the variable for the current word count of remaining sentences
+current_word_count = total_word_count
+
+# Create a new column for keeping/deleting sentences
+filtered_df["threshold_keep"] = 1  # Default to keeping all sentences
+
+# Iteratively mark sentences for deletion until the target word count is reached
+for idx, row in filtered_df.iterrows():
+    # if current_word_count <= target_word_count: # deleting 1 more
+    if current_word_count - row[
+        "word_count"] <= target_word_count:  # deleting 1 less
+        break  # Stop once we've removed enough words
+
+    # Update the current word count after marking the sentence
+    current_word_count -= row["word_count"]
+
+    # Mark sentence for deletion
+    filtered_df.at[idx, "threshold_keep"] = 0  # 0 = delete, 1 = keep
+
+# Restore sort
+filtered_df = filtered_df.sort_values(by='base_idx')
+
+# Text to keep/delete
+filtered_df_to_delete = filtered_df[filtered_df['threshold_keep'] == 0].copy()
+filtered_df_to_keep = filtered_df[filtered_df['threshold_keep'] == 1].copy()
+
+# Timestamps
+sentence_timestamps = list(
+    zip(filtered_df_to_keep['start_time'], filtered_df_to_keep['end_time']))
+
+notebook_mode_print(filtered_df)
 
 """### Text to Keep"""
 
@@ -1107,8 +1167,13 @@ text_to_delete = " ".join(filtered_df_to_delete['sentence'].tolist())
 
 notebook_mode_print(text_to_delete)
 
+words_kept = filtered_df_to_keep['word_count'].sum()
+words_delete = filtered_df_to_delete['word_count'].sum()
+
 notebook_mode_print(
-    f"text deletion {round(len(text_to_delete) / (len(text_to_delete) + len(text_to_keep)), 2) * 100}%")
+    f"Text deletion: {round(words_delete / (words_kept + words_delete) * 100, 2)}%")
+notebook_mode_print(
+    f"Sentence deletion: {round(len(filtered_df_to_delete) / (len(filtered_df_to_delete) + len(filtered_df_to_keep)) * 100, 2)}%")
 
 """# PostProcessing
 
@@ -1286,4 +1351,4 @@ print(f"Skimmed Video Length: {skimmed_video_length:.2f}s\n")
 
 summarization_ratio = (
                                   original_video_length - skimmed_video_length) / original_video_length
-print(f"Summarized/Original Video Length Ratio: {summarization_ratio:.2f}")
+print(f"Skimmed/Original Video Length Ratio: {summarization_ratio:.2f}")
