@@ -90,6 +90,17 @@ def ts_to_s(timestamp):
     return total_seconds
 
 
+def generate_experiment_filename(id_token, base, filename_without_extension,
+                                 extension):
+    m1w = hyperparameters["metric_1"]["weight"]
+    m2w = hyperparameters["metric_2"]["weight"]
+    mdt = hyperparameters["deletion_metric"]["threshold"]
+
+    experiment_name = f"_m1w-{m1w}_m2w-{m2w}_mdt-{mdt}_{id_token}"
+    return os.path.join(base,
+                        filename_without_extension + experiment_name + "." + extension)
+
+
 """## Installation & Setup"""
 
 if notebook_mode:
@@ -178,10 +189,14 @@ class Hyperparameters(BaseModel):
 if notebook_mode:
     video_input = "dataset/teamwork in the classroom.mov"
     video_output = "dataset/teamwork in the classroom_skimmed.mov"
+
+    experiment_mode = True
+
+    export_original_text = False
+    export_trimmed_text = False
+    export_summarized_text = False
+
     video_export_max_length_seconds = 0  # set develop video max length to export a shortened version of the multimedia
-    export_original_text = True
-    export_trimmed_text = True
-    export_summarized_text = True
 
     # original was max_length=150, min_length=30
     hyperparameters = {
@@ -214,6 +229,8 @@ else:
                         help="Path to the video input file")
     parser.add_argument("--video_output", "-o", type=str, default=None,
                         help="Path to save the output video")
+    parser.add_argument("--experiment_mode", "-exp", action="store_true",
+                        help="Run the project in experiment mode. (No video exports, just timestamps)")
     parser.add_argument("--video_export_max_length_seconds", type=int,
                         default=0,
                         help="Maximum length of the video to export (in seconds)")
@@ -249,8 +266,9 @@ else:
     args = parser.parse_args()
 
     # Now you can use the parsed arguments
-    video_export_max_length_seconds = args.video_export_max_length_seconds
     video_input = args.video_input
+    experiment_mode = args.experiment_mode
+    video_export_max_length_seconds = args.video_export_max_length_seconds
     video_output = args.video_output
     export_original_text = args.export_original_text
     export_trimmed_text = args.export_trimmed_text
@@ -276,6 +294,9 @@ else:
         }
     }
 
+if experiment_mode:
+    print_section("Experiment Mode")
+
 # Validate Hyperparameters
 try:
     validated_hyperparameters = Hyperparameters(**hyperparameters)
@@ -300,6 +321,7 @@ import gdown
 import re
 from functools import reduce
 import subprocess
+import json
 
 # ML General
 from datasets import load_dataset
@@ -366,6 +388,14 @@ filename_paragraph_trimmed = os.path.join(full_base,
                                           filename_without_extension + "_paragraph_trimmed.txt")
 filename_paragraph_summarized = os.path.join(full_base,
                                              filename_without_extension + "_paragraph_summarized.txt")
+
+# Experiemnt CSV
+# def generate_experiment_filename(id_token, base, filename_without_extension, extension):
+filename_experiment_keep = generate_experiment_filename("keep", full_base,
+                                                        filename_without_extension,
+                                                        "csv")
+filename_experiment_hyperparameters = generate_experiment_filename(
+    "hyperparameters", full_base, filename_without_extension, "json")
 
 # Output
 subtitles_output = os.path.join(full_base, filename_subtitles_output)
@@ -1312,12 +1342,14 @@ timestamps_to_keep = list(
 notebook_mode_print(f"Timestamps to keep: {timestamps_to_keep}")
 
 # Skim Video
-skim_video(video_input, video_output_skimmed, timestamps_to_keep)
+if not experiment_mode:
+    skim_video(video_input, video_output_skimmed, timestamps_to_keep)
 
 # Download
-if notebook_mode:
-    print_info("Downloading video...")
-    files.download(video_output_skimmed)
+if not experiment_mode:
+    if notebook_mode:
+        print_info("Downloading video...")
+        files.download(video_output_skimmed)
 
 # Export original text
 if export_original_text:
@@ -1341,14 +1373,27 @@ if export_summarized_text:
         files.download(filename_paragraph_summarized)
 
 # Simple Metrics
-print_section("Simple Metrics")
+if not experiment_mode:
+    print_section("Simple Metrics")
 
-original_video_length = get_video_length(video_input)
-print(f"Original Video Length: {original_video_length:.2f}s\n")
+    original_video_length = get_video_length(video_input)
+    print(f"Original Video Length: {original_video_length:.2f}s\n")
 
-skimmed_video_length = get_video_length(video_output_skimmed)
-print(f"Skimmed Video Length: {skimmed_video_length:.2f}s\n")
+    skimmed_video_length = get_video_length(video_output_skimmed)
+    print(f"Skimmed Video Length: {skimmed_video_length:.2f}s\n")
 
-summarization_ratio = (
-                                  original_video_length - skimmed_video_length) / original_video_length
-print(f"Skimmed/Original Video Length Ratio: {summarization_ratio:.2f}")
+    summarization_ratio = (
+                                      original_video_length - skimmed_video_length) / original_video_length
+    print(f"Skimmed/Original Video Length Ratio: {summarization_ratio:.2f}")
+
+"""### Experiemnt Export"""
+
+if experiment_mode:
+    filtered_df_to_keep[['metric_final', 'start_time', 'end_time', 'base_idx',
+                         'sentence']].to_csv(filename_experiment_keep,
+                                             index=False)
+
+    with open(filename_experiment_hyperparameters, "w") as f:
+        json.dump(hyperparameters, f, indent=2)
+
+    print_info("Experiment files exported.")
