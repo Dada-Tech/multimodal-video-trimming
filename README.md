@@ -3,9 +3,9 @@ Video trimming for Educational Content in Low-Production Environments
 
 # Installation
 
-### 1. Create Python3.10 environment
+### 1. Create Python3.11 environment
 
-`conda create --name whisperx python=3.10`
+`conda create --name whisperx python=3.11`
 
 `conda activate whisperx`
 
