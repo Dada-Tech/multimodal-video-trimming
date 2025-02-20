@@ -522,7 +522,7 @@ from multiprocessing import Queue
 # GPU
 if torch.cuda.is_available():
     device = "cuda"
-    compute_type = "float16"
+    compute_type = "float32"
     batch_size = 16
     model_whisperx = "base"
 
