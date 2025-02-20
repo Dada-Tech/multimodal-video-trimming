@@ -191,7 +191,7 @@ if notebook_mode:
     video_output = "dataset/teamwork in the classroom_skimmed.mov"
 
     experiment_mode = True
-    skip_imports = False
+    skip_nlp_downloads = False
 
     export_original_text = False
     export_trimmed_text = False
@@ -241,8 +241,8 @@ else:
                         help="Export trimmed text")
     parser.add_argument("--export_summarized_text", action="store_true",
                         help="Export summarized text")
-    parser.add_argument("--skip_imports", action="store_true",
-                        help="skip imports and library downloads")
+    parser.add_argument("--skip_nlp_downloads", action="store_true",
+                        help="skip nltk library downloads")
 
     # Hyperparameters as individual arguments
     parser.add_argument("--auto_summary_summary_length_percentage", type=float,
@@ -271,7 +271,7 @@ else:
     # Now you can use the parsed arguments
     video_input = args.video_input
     experiment_mode = args.experiment_mode
-    skip_imports = args.skip_imports
+    skip_nlp_downloads = args.skip_nlp_downloads
     video_export_max_length_seconds = args.video_export_max_length_seconds
     video_output = args.video_output
     export_original_text = args.export_original_text
@@ -315,51 +315,50 @@ except ValidationError as e:
 
 """
 
-if not skip_imports:
-    print_info("importing...")
+print_info("importing...")
 
-    import os
-    import numpy as np
-    import pandas as pd
-    import tarfile
-    import gdown
-    import re
-    from functools import reduce
-    import subprocess
-    import json
+import os
+import numpy as np
+import pandas as pd
+import tarfile
+import gdown
+import re
+from functools import reduce
+import subprocess
+import json
 
-    # ML General
-    from datasets import load_dataset
-    import torch
-    import torchaudio
-    import torch.nn.functional as F
-    from transformers import \
-        LongformerTokenizer, LongformerModel, \
-        LongformerForSequenceClassification, LongformerConfig, \
-        RobertaTokenizer, RobertaForTokenClassification, TrainingArguments, \
-        LEDTokenizer, LEDForConditionalGeneration
+# ML General
+from datasets import load_dataset
+import torch
+import torchaudio
+import torch.nn.functional as F
+from transformers import \
+    LongformerTokenizer, LongformerModel, LongformerForSequenceClassification, \
+    LongformerConfig, \
+    RobertaTokenizer, RobertaForTokenClassification, TrainingArguments, \
+    LEDTokenizer, LEDForConditionalGeneration
 
-    # Text
-    import string
-    import pytextrank
-    import nltk
-    from nltk.tokenize import sent_tokenize, word_tokenize
-    import spacy
-    import srt
+# Text
+import string
+import pytextrank
+import nltk
+from nltk.tokenize import sent_tokenize, word_tokenize
+import spacy
+import srt
 
-    # Audio
-    import whisperx
-    import silero_vad
-    from silero_vad import load_silero_vad, read_audio, get_speech_timestamps
-    from pydub import AudioSegment
+# Audio
+import whisperx
+import silero_vad
+from silero_vad import load_silero_vad, read_audio, get_speech_timestamps
+from pydub import AudioSegment
 
-    # Video
-    import ffmpeg
-    from scenedetect import detect, ContentDetector
+# Video
+import ffmpeg
+from scenedetect import detect, ContentDetector
 
-    print_info("importing done")
+print_info("importing done")
 
-if not skip_imports:
+if not skip_nlp_downloads:
     print_info("downloading NLTK libraries...")
 
     nltk.download('punkt')
