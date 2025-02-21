@@ -555,26 +555,41 @@ alignment_model, metadata = whisperx.load_align_model(
 aligned_segments = whisperx.align(aligned_segments["segments"], alignment_model,
                                   metadata, audio_output, device)
 
-# Generate SRT file with aligned sentences
-with open(subtitles_output, "w") as f:
+if not experiment_mode:
+    # Generate SRT file with aligned sentences
+    with open(subtitles_output, "w") as f:
+        for i, segment in enumerate(aligned_segments["segments"], 1):
+            # Get start and end times in SRT format
+            start_time = seconds_to_srt_timestamp(segment["start"])
+            end_time = seconds_to_srt_timestamp(segment["end"])
+
+            # Write SRT entry
+            f.write(f"{i}\n{start_time} --> {end_time}\n{segment['text']}\n\n")
+
+    print_info("SRT file generated", subtitles_output)
+else:
+    # Generate SRT content as a string
+    srt_content = ""
     for i, segment in enumerate(aligned_segments["segments"], 1):
         # Get start and end times in SRT format
         start_time = seconds_to_srt_timestamp(segment["start"])
         end_time = seconds_to_srt_timestamp(segment["end"])
 
-        # Write SRT entry
-        f.write(f"{i}\n{start_time} --> {end_time}\n{segment['text']}\n\n")
+        # Append SRT entry to the string
+        srt_content += f"{i}\n{start_time} --> {end_time}\n{segment['text']}\n\n"
 
-print_info("SRT file generated", subtitles_output)
+    # Parse the SRT content directly
+    subtitles = list(srt.parse(srt_content))
 
 """# Preprocessing - Text
 
 ## Text - Load SRT File
 """
 
-# Subtitles:
-with open(subtitles_output, "r", encoding="utf-8") as f:
-    subtitles = list(srt.parse(f.read()))
+if not experiment_mode:
+    # Subtitles:
+    with open(subtitles_output, "r", encoding="utf-8") as f:
+        subtitles = list(srt.parse(f.read()))
 
 """## Text - Sentence Segmentation"""
 
