@@ -394,7 +394,7 @@ filename_paragraph_trimmed = os.path.join(full_base,
 filename_paragraph_summarized = os.path.join(full_base,
                                              filename_without_extension + "_paragraph_summarized.txt")
 
-# Experiemnt CSV
+# Experiment CSV
 # def generate_experiment_filename(id_token, base, filename_without_extension, extension):
 filename_experiment_keep = generate_experiment_filename("keep", full_base,
                                                         filename_without_extension,
@@ -1391,12 +1391,11 @@ if not experiment_mode:
                                       original_video_length - skimmed_video_length) / original_video_length
     print(f"Skimmed/Original Video Length Ratio: {summarization_ratio:.2f}")
 
-"""### Experiemnt Export"""
+"""### Experiment Export"""
 
 if experiment_mode:
-    filtered_df_to_keep[['metric_final', 'start_time', 'end_time', 'base_idx',
-                         'sentence']].to_csv(filename_experiment_keep,
-                                             index=False)
+    df_sentences[['metric_final', 'start_time', 'end_time', 'base_idx',
+                  'sentence']].to_csv(filename_experiment_keep, index=False)
 
     with open(filename_experiment_hyperparameters, "w") as f:
         json.dump(hyperparameters, f, indent=2)
