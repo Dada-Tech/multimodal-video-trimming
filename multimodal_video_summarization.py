@@ -202,6 +202,9 @@ if notebook_mode:
     video_input = "dataset/teamwork in the classroom.mov"
     video_output = "dataset/teamwork in the classroom_skimmed.mov"
 
+    # video_input = "dataset/uGu_10sucQo.mp4"
+    # video_output = "dataset/uGu_10sucQo_skimmed.mp4"
+
     experiment_mode = False  ## If experiment mode is True, you must run SRT File Gen block
     skip_nlp_downloads = False
 
@@ -414,10 +417,10 @@ filename_paragraph_summarized = os.path.join(full_base,
                                              filename_without_extension + "_paragraph_summarized.txt")
 
 # Experiment CSV
-# def generate_experiment_filename(id_token, base, filename_without_extension, extension):
-filename_experiment_keep = generate_experiment_filename("keep", full_base,
-                                                        filename_without_extension,
-                                                        "csv")
+filename_experiment_sentences = generate_experiment_filename("sentences",
+                                                             full_base,
+                                                             filename_without_extension,
+                                                             "csv")
 filename_experiment_hyperparameters = generate_experiment_filename(
     "hyperparameters", full_base, filename_without_extension, "json")
 
@@ -640,7 +643,9 @@ for i, segment in enumerate(subtitles):
         'sentence': segment.content
     })
 
-df_sentences = pd.DataFrame(sentences)
+df_sentences = pd.DataFrame(sentences,
+                            columns=['base_idx', 'start_time', 'end_time',
+                                     'sentence'])
 sentences = df_sentences['sentence'].tolist()
 notebook_mode_print(df_sentences)
 
@@ -651,7 +656,6 @@ WhisperAI enhances transcription with basic punctuation.
 """
 
 paragraph = reduce(lambda acc, seg: acc + seg.strip() + ' ', sentences, '')
-paragraph = "oh hi there"  ### TEST _ REMOVE
 parahraph_wordcount = count_words_without_punctuation(paragraph)
 
 # Print the paragraph
@@ -666,39 +670,43 @@ print_info("paragraph sample", paragraph)
 
 print_info("Summarizing Paragraph")
 
-# Model: Longformer Encoder-Decoder
-model_name = "allenai/led-base-16384"
-tokenizer = LEDTokenizer.from_pretrained(model_name)
-model = LEDForConditionalGeneration.from_pretrained(model_name)
-text = paragraph
+paragraph_summarized = ""
 
-# Tokenization
-inputs = tokenizer(text, return_tensors="pt", max_length=4096, truncation=True)
+if parahraph_wordcount > 0:
+    # Model: Longformer Encoder-Decoder
+    model_name = "allenai/led-base-16384"
+    tokenizer = LEDTokenizer.from_pretrained(model_name)
+    model = LEDForConditionalGeneration.from_pretrained(model_name)
+    text = paragraph
 
-# Calculate dynamic summary length
-summary_length_percentage = hyperparameters["auto_summary"][
-    "summary_length_percentage"]
-min_summary_length = hyperparameters["auto_summary"]["min_summary_length"]
-max_summary_length = hyperparameters["auto_summary"]["max_summary_length"]
+    # Tokenization
+    inputs = tokenizer(text, return_tensors="pt", max_length=4096,
+                       truncation=True)
 
-input_length = len(inputs["input_ids"][0])
-summary_length = int(input_length * summary_length_percentage)
-summary_length = max(min_summary_length,
-                     min(summary_length, max_summary_length))
+    # Calculate dynamic summary length
+    summary_length_percentage = hyperparameters["auto_summary"][
+        "summary_length_percentage"]
+    min_summary_length = hyperparameters["auto_summary"]["min_summary_length"]
+    max_summary_length = hyperparameters["auto_summary"]["max_summary_length"]
 
-# Summary Generation
-summary_ids = model.generate(
-    inputs["input_ids"],
-    max_length=summary_length,
-    min_length=min_summary_length,
-    length_penalty=1.2,
-    num_beams=4,
-    early_stopping=True
-)
+    input_length = len(inputs["input_ids"][0])
+    summary_length = int(input_length * summary_length_percentage)
+    summary_length = max(min_summary_length,
+                         min(summary_length, max_summary_length))
 
-paragraph_summarized = tokenizer.decode(summary_ids[0],
-                                        skip_special_tokens=True)
-print_info("paragraph summarized", paragraph_summarized)
+    # Summary Generation
+    summary_ids = model.generate(
+        inputs["input_ids"],
+        max_length=summary_length,
+        min_length=min_summary_length,
+        length_penalty=1.2,
+        num_beams=4,
+        early_stopping=True
+    )
+
+    paragraph_summarized = tokenizer.decode(summary_ids[0],
+                                            skip_special_tokens=True)
+    print_info("paragraph summarized", paragraph_summarized)
 
 # Simple Metrics
 print_info("Simple Metrics")
@@ -709,8 +717,11 @@ summary_length = len(paragraph_summarized)
 print(f"original length: {original_length}")
 print(f"summary length: {summary_length}")
 
-summarization_ratio = (original_length - summary_length) / original_length
-print(f"Summarized/Original Length Ratio: {summarization_ratio:.2f}")
+if original_length > 0:
+    summarization_ratio = (original_length - summary_length) / original_length
+    print(f"Summarized/Original Length Ratio: {summarization_ratio:.2f}")
+else:
+    print_info("WARN: 0 Words found in video")
 
 """# Text
 
@@ -788,7 +799,7 @@ drop_if_exists(df_sentences, "metric_1_score")
 if not skip_metric_1:
     df_sentences.insert(0, "metric_1_score", normalized_scores)
 else:
-    df_sentences.insert(1, "metric_1_score", 1)
+    df_sentences.insert(1, "metric_1_score", 0)
 
 notebook_mode_print(df_sentences)
 
@@ -974,9 +985,9 @@ notebook_mode_print(scene_list)
 
 # 2: Segment Scoring
 scene_segments = [(
-    end.get_seconds() - start.get_seconds(), start.get_timecode(),
-    end.get_timecode())
-    for start, end in scene_list]
+                  end.get_seconds() - start.get_seconds(), start.get_timecode(),
+                  end.get_timecode())
+                  for start, end in scene_list]
 
 # Convert to DataFrame
 df_scenes = pd.DataFrame(scene_segments,
@@ -996,8 +1007,6 @@ df_scenes["score"] = df_scenes["score"].round(2)
 
 notebook_mode_print(df_scenes)
 
-
-# 3: Apply score to contained sentence and track scene_number
 
 # Function to compute weighted scene score for each sentence
 def compute_sentence_score(sentence_row):
@@ -1045,25 +1054,48 @@ def compute_sentence_score(sentence_row):
     return total_score, scene_number_start, scene_number_end
 
 
-# Drop existing columns if needed
-drop_if_exists(df_sentences, "metric_2_score")
-drop_if_exists(df_sentences, "scene_number_start")
-drop_if_exists(df_sentences, "scene_number_end")
+# 3: Apply score to contained sentence and track scene_number
 
-# Insert columns for metric_2_score and scene_number
-df_sentences.insert(1, "metric_2_score", 0)
-df_sentences.insert(1, "scene_number_end", 0)
-df_sentences.insert(1, "scene_number_start", 0)
+if not skip_metric_1:
+    # Drop existing columns if needed
+    drop_if_exists(df_sentences, "metric_2_score")
+    drop_if_exists(df_sentences, "scene_number_start")
+    drop_if_exists(df_sentences, "scene_number_end")
 
-# Apply the function to get the score and scene_number
-df_sentences[['metric_2_score', 'scene_number_start',
-              'scene_number_end']] = df_sentences.apply(compute_sentence_score,
-                                                        axis=1,
-                                                        result_type='expand')
+    # Insert columns for metric_2_score and scene_number
+    df_sentences.insert(1, "metric_2_score", 0)
+    df_sentences.insert(1, "scene_number_end", 0)
+    df_sentences.insert(1, "scene_number_start", 0)
 
-df_sentences['scene_number_start'] = df_sentences['scene_number_start'].astype(
-    int)
-df_sentences['scene_number_end'] = df_sentences['scene_number_end'].astype(int)
+    # Apply the function to get the score and scene_number
+    df_sentences[['metric_2_score', 'scene_number_start',
+                  'scene_number_end']] = df_sentences.apply(
+        compute_sentence_score, axis=1, result_type='expand')
+
+    df_sentences['scene_number_start'] = df_sentences[
+        'scene_number_start'].astype(int)
+    df_sentences['scene_number_end'] = df_sentences['scene_number_end'].astype(
+        int)
+
+# Replace sentences_df with scenes
+else:
+    print_info("Metric 1 Skipped Defaulting to Metric 2-only evaluation...")
+    df_scenes_as_sentences = df_scenes.assign(
+        base_idx=df_scenes.index,
+        scene_number_start=df_scenes.index,
+        scene_number_end=df_scenes.index,
+        metric_1_score=0,
+        metric_2_score=df_scenes.normalized_score,
+        start_time=df_scenes.start_time,
+        end_time=df_scenes.end_time,
+        sentence=""
+    )
+
+    # only select columns from df_sentences
+    df_scenes_as_sentences = df_scenes_as_sentences[df_sentences.columns]
+
+    df_sentences = pd.concat([df_sentences, df_scenes_as_sentences],
+                             ignore_index=True)
 
 # Display the updated DataFrame
 notebook_mode_print(df_sentences)
@@ -1431,14 +1463,15 @@ if not experiment_mode:
     print(f"Skimmed Video Length: {skimmed_video_length:.2f}s\n")
 
     summarization_ratio = (
-                                  original_video_length - skimmed_video_length) / original_video_length
+                                      original_video_length - skimmed_video_length) / original_video_length
     print(f"Skimmed/Original Video Length Ratio: {summarization_ratio:.2f}")
 
 """### Experiment Export"""
 
 if experiment_mode:
     df_sentences[['metric_final', 'start_time', 'end_time', 'base_idx',
-                  'sentence']].to_csv(filename_experiment_keep, index=False)
+                  'sentence']].to_csv(filename_experiment_sentences,
+                                      index=False)
 
     with open(filename_experiment_hyperparameters, "w") as f:
         json.dump(hyperparameters, f, indent=2)
