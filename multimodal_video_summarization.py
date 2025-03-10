@@ -733,14 +733,14 @@ else:
 print_section("Metric 1: Sentence-Summarized Relevancy")
 
 if parahraph_wordcount < hyperparameters["metric_1"]["min_words"]:
-    skip_metric_1 = True
+    skip_text_metrics = True
     print_info(f"Warning: Video contained only {parahraph_wordcount} words, \
   which did not meet minimum wordcount threshold to use this metric. Skipping.")
 
 else:
-    skip_metric_1 = False
+    skip_text_metrics = False
 
-if not skip_metric_1:
+if not skip_text_metrics:
     # config
     attention_window = 256
     model_size = hyperparameters["metric_1"]["model_size"]
@@ -753,7 +753,7 @@ if not skip_metric_1:
     tokenizer_lf = LongformerTokenizer.from_pretrained(model_name_lf,
                                                        model_max_length=attention_window)
 
-if not skip_metric_1:
+if not skip_text_metrics:
     # 2: Tokenization
     paragraph_tokens = tokenizer_lf(paragraph_summarized, return_tensors='pt')
     # sentence_tokens = [tokenizer_lf(sentence, return_tensors='pt') for sentence in sentences]
@@ -761,7 +761,7 @@ if not skip_metric_1:
     sentence_tokens = tokenizer_lf(sentences, padding=True, truncation=True,
                                    return_tensors='pt')
 
-if not skip_metric_1:
+if not skip_text_metrics:
     # 3: Embedding
     with torch.no_grad():  # Disable gradient computation for efficiency
         paragraph_embedding = model_lf(**paragraph_tokens).last_hidden_state[:,
@@ -775,7 +775,7 @@ if not skip_metric_1:
 The [CLS] (classification) token is often used in transformer models to represent the overall meaning or summary of the input sequence. By extracting its embedding, you're essentially obtaining a representation that captures the main point or essence of the paragraph.
 """
 
-if not skip_metric_1:
+if not skip_text_metrics:
     # 4: Relevance scores
     relevance_scores = [
         torch.cosine_similarity(paragraph_embedding, sentence_embedding).item()
@@ -796,7 +796,7 @@ if not skip_metric_1:
 # 5: Display Results
 drop_if_exists(df_sentences, "metric_1_score")
 
-if not skip_metric_1:
+if not skip_text_metrics:
     df_sentences.insert(0, "metric_1_score", normalized_scores)
 else:
     df_sentences.insert(1, "metric_1_score", 0)
@@ -1056,7 +1056,7 @@ def compute_sentence_score(sentence_row):
 
 # 3: Apply score to contained sentence and track scene_number
 
-if not skip_metric_1:
+if not skip_text_metrics:
     # Drop existing columns if needed
     drop_if_exists(df_sentences, "metric_2_score")
     drop_if_exists(df_sentences, "scene_number_start")
