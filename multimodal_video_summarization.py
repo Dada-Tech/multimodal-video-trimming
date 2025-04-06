@@ -1056,17 +1056,17 @@ def compute_sentence_score(sentence_row):
 
 # 3: Apply score to contained sentence and track scene_number
 
+# Drop existing columns if needed
+drop_if_exists(df_sentences, "metric_2_score")
+drop_if_exists(df_sentences, "scene_number_start")
+drop_if_exists(df_sentences, "scene_number_end")
+
+# Insert columns for metric_2_score and scene_number
+df_sentences.insert(1, "metric_2_score", 0)
+df_sentences.insert(1, "scene_number_end", 0)
+df_sentences.insert(1, "scene_number_start", 0)
+
 if not skip_text_metrics:
-    # Drop existing columns if needed
-    drop_if_exists(df_sentences, "metric_2_score")
-    drop_if_exists(df_sentences, "scene_number_start")
-    drop_if_exists(df_sentences, "scene_number_end")
-
-    # Insert columns for metric_2_score and scene_number
-    df_sentences.insert(1, "metric_2_score", 0)
-    df_sentences.insert(1, "scene_number_end", 0)
-    df_sentences.insert(1, "scene_number_start", 0)
-
     # Apply the function to get the score and scene_number
     df_sentences[['metric_2_score', 'scene_number_start',
                   'scene_number_end']] = df_sentences.apply(
