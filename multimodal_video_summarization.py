@@ -17,13 +17,9 @@ import subprocess
 notebook_mode = "auto"
 dev_mode = False
 
-# Check if either 'COLAB_GPU' or 'KAGGLE_URL_BASE' is in the environment variables
-notebook_mode = True if (
-            'COLAB_GPU' in os.environ or 'KAGGLE_URL_BASE' in os.environ) else False
-
-# Override if "auto" mode is specified
-notebook_mode = notebook_mode if notebook_mode != "auto" else (True if (
-            'COLAB_GPU' in os.environ or 'KAGGLE_URL_BASE' in os.environ) else False)
+# Check for Notebook mode
+notebook_mode = (
+    True if 'COLAB_GPU' in os.environ else False) if notebook_mode == "auto" else notebook_mode
 
 print(f"""Notebook Mode: {notebook_mode}""")
 
