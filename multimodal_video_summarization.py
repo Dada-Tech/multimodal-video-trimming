@@ -17,9 +17,14 @@ import subprocess
 notebook_mode = "auto"
 dev_mode = False
 
-# Notebook Mode: Auto-detect Google Colab instance
-notebook_mode = (
-    True if 'COLAB_GPU' in os.environ else False) if notebook_mode == "auto" else notebook_mode
+# Check if either 'COLAB_GPU' or 'KAGGLE_URL_BASE' is in the environment variables
+notebook_mode = True if (
+            'COLAB_GPU' in os.environ or 'KAGGLE_URL_BASE' in os.environ) else False
+
+# Override if "auto" mode is specified
+notebook_mode = notebook_mode if notebook_mode != "auto" else (True if (
+            'COLAB_GPU' in os.environ or 'KAGGLE_URL_BASE' in os.environ) else False)
+
 print(f"""Notebook Mode: {notebook_mode}""")
 
 
@@ -717,10 +722,10 @@ summary_length = len(paragraph_summarized)
 print(f"original length: {original_length}")
 print(f"summary length: {summary_length}")
 
-if original_length > 0:
+if original_length > 0 and original_length > summary_length:
     summarization_ratio = (original_length - summary_length) / original_length
     print(f"Summarized/Original Length Ratio: {summarization_ratio:.2f}")
-else:
+elif original_length == 0:
     print_info("WARN: 0 Words found in video")
 
 """# Text
@@ -1080,22 +1085,23 @@ if not skip_text_metrics:
 # Replace sentences_df with scenes
 else:
     print_info("Metric 1 Skipped Defaulting to Metric 2-only evaluation...")
+
     df_scenes_as_sentences = df_scenes.assign(
         base_idx=df_scenes.index,
         scene_number_start=df_scenes.index,
         scene_number_end=df_scenes.index,
         metric_1_score=0,
-        metric_2_score=df_scenes.normalized_score,
+        metric_2_score=df_scenes.score,
         start_time=df_scenes.start_time,
         end_time=df_scenes.end_time,
         sentence=""
     )
 
-    # only select columns from df_sentences
-    df_scenes_as_sentences = df_scenes_as_sentences[df_sentences.columns]
+    df_sentences = df_scenes_as_sentences
 
-    df_sentences = pd.concat([df_sentences, df_scenes_as_sentences],
-                             ignore_index=True)
+    # only select columns from df_sentences
+    # df_scenes_as_sentences = df_scenes_as_sentences[df_sentences.columns]
+    # df_sentences = pd.concat([df_sentences, df_scenes_as_sentences], ignore_index=True)
 
 # Display the updated DataFrame
 notebook_mode_print(df_sentences)
@@ -1142,7 +1148,7 @@ OR
 """# Final Score - Metric Weighting"""
 
 # Normalized Weigthed average
-w1 = hyperparameters['metric_1']['weight']
+w1 = hyperparameters['metric_1']['weight'] if not skip_text_metrics else 0
 w2 = hyperparameters['metric_2']['weight']
 weight_sum = w1 + w2
 w1_normalized = w1 / weight_sum
@@ -1211,52 +1217,54 @@ sentence_timestamps = list(
 
 notebook_mode_print(sentence_timestamps)
 
-threshold = hyperparameters['deletion_metric']['threshold']
+if not skip_text_metrics:
+    threshold = hyperparameters['deletion_metric']['threshold']
 
-filtered_df = df_sentences.copy()
+    filtered_df = df_sentences.copy()
 
-# Count words of each sentence
-filtered_df['word_count'] = filtered_df['sentence'].apply(
-    count_words_without_punctuation)
+    # Count words of each sentence
+    filtered_df['word_count'] = filtered_df['sentence'].apply(
+        count_words_without_punctuation)
 
-# Target word count to keep (e.g., 80% of total words when threshold = 20%)
-total_word_count = filtered_df['word_count'].sum()
-target_word_count = round(total_word_count * (1 - threshold))
+    # Target word count to keep (e.g., 80% of total words when threshold = 20%)
+    total_word_count = filtered_df['word_count'].sum()
+    target_word_count = round(total_word_count * (1 - threshold))
 
-# Sort the DataFrame by 'metric_final' (low to high score)
-filtered_df = filtered_df.sort_values(by='metric_final')
+    # Sort the DataFrame by 'metric_final' (low to high score)
+    filtered_df = filtered_df.sort_values(by='metric_final')
 
-# Initialize the variable for the current word count of remaining sentences
-current_word_count = total_word_count
+    # Initialize the variable for the current word count of remaining sentences
+    current_word_count = total_word_count
 
-# Create a new column for keeping/deleting sentences
-filtered_df["threshold_keep"] = 1  # Default to keeping all sentences
+    # Create a new column for keeping/deleting sentences
+    filtered_df["threshold_keep"] = 1  # Default to keeping all sentences
 
-# Iteratively mark sentences for deletion until the target word count is reached
-for idx, row in filtered_df.iterrows():
-    # if current_word_count <= target_word_count: # deleting 1 more
-    if current_word_count - row[
-        "word_count"] <= target_word_count:  # deleting 1 less
-        break  # Stop once we've removed enough words
+    # Iteratively mark sentences for deletion until the target word count is reached
+    for idx, row in filtered_df.iterrows():
+        # if current_word_count <= target_word_count: # deleting 1 more
+        if current_word_count - row[
+            "word_count"] <= target_word_count:  # deleting 1 less
+            break  # Stop once we've removed enough words
 
-    # Update the current word count after marking the sentence
-    current_word_count -= row["word_count"]
+        # Update the current word count after marking the sentence
+        current_word_count -= row["word_count"]
 
-    # Mark sentence for deletion
-    filtered_df.at[idx, "threshold_keep"] = 0  # 0 = delete, 1 = keep
+        # Mark sentence for deletion
+        filtered_df.at[idx, "threshold_keep"] = 0  # 0 = delete, 1 = keep
 
-# Restore sort
-filtered_df = filtered_df.sort_values(by='base_idx')
+    # Restore sort
+    filtered_df = filtered_df.sort_values(by='base_idx')
 
-# Text to keep/delete
-filtered_df_to_delete = filtered_df[filtered_df['threshold_keep'] == 0].copy()
-filtered_df_to_keep = filtered_df[filtered_df['threshold_keep'] == 1].copy()
+    # Text to keep/delete
+    filtered_df_to_delete = filtered_df[
+        filtered_df['threshold_keep'] == 0].copy()
+    filtered_df_to_keep = filtered_df[filtered_df['threshold_keep'] == 1].copy()
 
-# Timestamps
-sentence_timestamps = list(
-    zip(filtered_df_to_keep['start_time'], filtered_df_to_keep['end_time']))
+    # Timestamps
+    sentence_timestamps = list(
+        zip(filtered_df_to_keep['start_time'], filtered_df_to_keep['end_time']))
 
-notebook_mode_print(filtered_df)
+    notebook_mode_print(filtered_df)
 
 """### Text to Keep"""
 
@@ -1277,13 +1285,14 @@ text_to_delete = " ".join(filtered_df_to_delete['sentence'].tolist())
 
 notebook_mode_print(text_to_delete)
 
-words_kept = filtered_df_to_keep['word_count'].sum()
-words_delete = filtered_df_to_delete['word_count'].sum()
+if not skip_text_metrics:
+    words_kept = filtered_df_to_keep['word_count'].sum()
+    words_delete = filtered_df_to_delete['word_count'].sum()
 
-notebook_mode_print(
-    f"Text deletion: {round(words_delete / (words_kept + words_delete) * 100, 2)}%")
-notebook_mode_print(
-    f"Sentence deletion: {round(len(filtered_df_to_delete) / (len(filtered_df_to_delete) + len(filtered_df_to_keep)) * 100, 2)}%")
+    notebook_mode_print(
+        f"Text deletion: {round(words_delete / (words_kept + words_delete) * 100, 2)}%")
+    notebook_mode_print(
+        f"Sentence deletion: {round(len(filtered_df_to_delete) / (len(filtered_df_to_delete) + len(filtered_df_to_keep)) * 100, 2)}%")
 
 """# PostProcessing
 
