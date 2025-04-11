@@ -16,6 +16,7 @@ import subprocess
 
 notebook_mode = "auto"
 dev_mode = False
+colab_mode = True  # for special requirements.txt without numpy/pandas
 
 # Check for Notebook mode
 notebook_mode = (
@@ -116,14 +117,16 @@ def count_words_without_punctuation(sentence):
 if notebook_mode:
     print_section("installing deps")
 
+    requirements_txt = "requirements-colab.txt" if colab_mode else "requirements.txt"
+
     # download requirements.txt from repository
     subprocess.run(["curl", "-O",
-                    "https://raw.githubusercontent.com/Dada-Tech/multimodal-video-trimming/main/requirements.txt"],
+                    "https://raw.githubusercontent.com/Dada-Tech/multimodal-video-trimming/main/" + requirements_txt],
                    check=True)
 
     subprocess.check_call(
         ['python', '-m', 'pip', 'install', '--no-cache-dir', '-r',
-         'requirements.txt'])
+         requirements_txt])
 
     print_info("installation done.")
 else:
@@ -355,11 +358,8 @@ from datasets import load_dataset
 import torch
 import torchaudio
 import torch.nn.functional as F
-from transformers import \
-    LongformerTokenizer, LongformerModel, LongformerForSequenceClassification, \
-    LongformerConfig, \
-    RobertaTokenizer, RobertaForTokenClassification, TrainingArguments, \
-    LEDTokenizer, LEDForConditionalGeneration
+from transformers import LEDTokenizer, LEDForConditionalGeneration
+from sentence_transformers import SentenceTransformer
 
 # Text
 import string
@@ -742,40 +742,27 @@ else:
     skip_text_metrics = False
 
 if not skip_text_metrics:
-    # config
-    attention_window = 516
-    model_size = hyperparameters["metric_1"]["model_size"]
-    model_name_lf = f'allenai/longformer-{model_size}-4096'
-    config = LongformerConfig.from_pretrained(model_name_lf,
-                                              attention_window=attention_window)
-
-    # model: Longformer
-    model_max_length = 4096
-    model_lf = LongformerModel.from_pretrained(model_name_lf, config=config)
-
-    # tokenizer
-    tokenizer_lf = LongformerTokenizer.from_pretrained(model_name_lf,
-                                                       model_max_length=model_max_length)
-    tokenizer_lf.model_max_length = model_max_length
+    # Model Setup
+    model_instructor_xl = SentenceTransformer(
+        'hkunlp/instructor-xl',
+        device='cuda' if torch.cuda.is_available() else 'cpu'
+    )
 
 if not skip_text_metrics:
-    # 2: Tokenization
-    paragraph_tokens = tokenizer_lf(paragraph_summarized, return_tensors='pt',
-                                    truncation=True,
-                                    max_length=model_max_length)
+    # 3: Embedding (with Tokenization)
+    paragraph_embedding = model_instructor_xl.encode(
+        paragraph_summarized,
+        convert_to_tensor=True,
+        max_length=4096,
+        truncation=True
+    )
 
-    sentence_tokens = tokenizer_lf(sentences, padding=True, truncation=True,
-                                   return_tensors='pt')
-
-if not skip_text_metrics:
-    # 3: Embedding
-    with torch.no_grad():  # Disable gradient computation for efficiency
-        paragraph_embedding = model_lf(**paragraph_tokens).last_hidden_state[:,
-                              0, :]  # Get the [CLS] token embedding
-
-        # Process batched sentence tokens
-        sentence_embeddings = model_lf(**sentence_tokens).last_hidden_state[:,
-                              0, :]
+    sentence_embeddings = model_instructor_xl.encode(
+        sentences,
+        convert_to_tensor=True,
+        max_length=4096,
+        truncation=True
+    )
 
 """Embedding Explanation  
 The [CLS] (classification) token is often used in transformer models to represent the overall meaning or summary of the input sequence. By extracting its embedding, you're essentially obtaining a representation that captures the main point or essence of the paragraph.
@@ -783,9 +770,12 @@ The [CLS] (classification) token is often used in transformer models to represen
 
 if not skip_text_metrics:
     # 4: Relevance scores
+
     relevance_scores = [
-        torch.cosine_similarity(paragraph_embedding, sentence_embedding).item()
-        for sentence_embedding in sentence_embeddings]
+        torch.cosine_similarity(paragraph_embedding, sentence_embedding,
+                                dim=0).item()
+        for sentence_embedding in sentence_embeddings
+    ]
 
     # Normalization: min-max normalization
     min_score = min(relevance_scores)
