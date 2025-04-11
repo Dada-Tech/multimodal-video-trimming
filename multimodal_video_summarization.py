@@ -15,7 +15,6 @@ import os
 import subprocess
 
 notebook_mode = "auto"
-dev_mode = False
 colab_mode = True  # for special requirements.txt without numpy/pandas
 
 # Check for Notebook mode
@@ -66,11 +65,6 @@ def notebook_mode_print(message_or_df):
         display(message_or_df) if isinstance(message_or_df,
                                              pd.DataFrame) else print(
             message_or_df)
-
-
-def dev_mode_print(message):
-    if dev_mode:
-        print(message)
 
 
 def ts_to_s(timestamp):
@@ -803,164 +797,6 @@ notebook_mode_print(df_sentences)
 # from google.colab import sheets
 # sheet = sheets.InteractiveSheet(df=df_sentences)
 
-"""## Metric: Intra-sentence relevancy
-Score by if current sentence is needded by adjacent sentences.
-"""
-
-# from transformers import BertForSequenceClassification, BertTokenizer
-
-# # Load pre-trained model and tokenizer
-# model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=2)
-# tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
-# # Store predictions for each sentence
-# predictions = []
-
-# # Iterate through sentence pairs
-# for i in range(len(sentences) - 1):
-#     sentence1 = sentences[i]
-#     sentence2 = sentences[i + 1]
-
-#     # Tokenize and prepare input
-#     inputs = tokenizer(sentence1, sentence2, return_tensors='pt', truncation=True, padding=True, add_special_tokens=True)
-
-#     # Get model prediction
-#     outputs = model(**inputs)
-#     prediction = torch.argmax(outputs.logits).item()
-
-#     # Store prediction
-#     predictions.append(prediction)
-
-# # Handle last sentence (no next sentence)
-# predictions.append(0)  # Assume last sentence doesn't need a next sentence
-
-# # Add predictions to DataFrame
-# df_sentences = df_sentences.assign(**{"Previous Sentence Needed": predictions})
-
-# display(df_sentences)
-
-"""## Metric: Intelligent Sentence-Paragraph Relevancy
-
-##### Time Taken: 13min - 26min
-"""
-
-# tokenizer = LongformerTokenizer.from_pretrained("allenai/longformer-base-4096")
-# model = LongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
-
-# # Ensure the model is in evaluation mode
-# model.eval()
-
-# # Example usage
-# body_paragraph = paragraph
-
-# relevance_scores = []
-
-# for sentence in sentences:
-#     # Prepare the input for Longformer
-#     inputs = tokenizer(
-#         body_paragraph,
-#         sentence,
-#         return_tensors='pt',
-#         max_length=4096,
-#         truncation=True,
-#         padding='max_length'  # Pad to max length to avoid issues with model input size
-#     )
-
-#     # Get model predictions
-#     with torch.no_grad():
-#         outputs = model(**inputs)
-
-#     # Assuming binary classification (relevant/not relevant)
-#     relevance_score = torch.softmax(outputs.logits, dim=1)[0][1].item()  # Probability of being relevant
-#     relevance_scores.append((sentence, relevance_score))
-
-# # Sort sentences based on relevance scores
-# sorted_sentences = sorted(relevance_scores, key=lambda x: x[1], reverse=True)
-# ranked_sentences = [sentence for sentence, score in sorted_sentences]
-
-# relevance_scores[0]
-
-# sentence_indices = list(range(len(relevance_scores)))
-# scores = [score for sentence, score in relevance_scores]
-# sentences_text = [sentence for sentence, score in relevance_scores]
-
-# df_relevance = pd.DataFrame({'Sentence Index': sentence_indices, 'Score': scores, 'Sentence': sentences_text})
-# df_relevance
-
-"""## Metric: Keyword extraction and Ranking
-using TextRank
-"""
-
-# # Load a spaCy model
-# nlp = spacy.load("en_core_web_sm")
-
-# # Add the pytextrank pipeline component to spaCy
-# nlp.add_pipe("textrank")
-
-# phrase_data = []
-
-# # Process the text
-# doc = nlp(paragraph)
-
-# for phrase in doc._.phrases:
-#   phrase_data.append([phrase.text, phrase.rank, phrase.count])
-
-# df_phrases = pd.DataFrame(phrase_data, columns=['Phrase', 'Rank', 'Count'])
-# df_phrases.sort_values(by=['Rank'], ascending=False, inplace=True)
-
-# display(df_phrases)
-
-"""## Metric: Question-Answering Evaluation"""
-
-# from transformers import pipeline
-# from sentence_transformers import SentenceTransformer, util
-
-
-# # Load the question-answering pipeline
-# # qa_pipeline = pipeline(
-# #     "question-answering",
-# #     model="distilbert-base-cased-distilled-squad"
-# #     # model="valhalla/longformer-base-4096-finetuned-squadv1"
-# #   )
-
-# question_generation_pipeline = pipeline("text2text-generation", model="t5-small")
-# # question_generation_pipeline = pipeline("text2text-generation", model="facebook/bart-large")
-# # question_generation_pipeline = pipeline("text2text-generation", model="valhalla/t5-base-qa-qg-hl")
-
-# unsummarized_text = """
-# Albert Einstein was a theoretical physicist born in Germany. He developed the theory of relativity,
-# one of the two pillars of modern physics. He won the Nobel Prize in Physics in 1921.
-# """
-
-# # Prompt BART to generate questions
-# prompt = f"translate english to french: {unsummarized_text}"
-
-# # Generate questions
-# # generated_questions = question_generation_pipeline(prompt)
-# generated_questions = question_generation_pipeline(
-#     prompt,
-#     max_length=50,           # Maximum length of generated text (in tokens)
-#     num_beams=5,             # Enable beam search with 5 beams
-#     num_return_sequences=1)  # Generate 3 different sequences
-
-# generated_questions
-# # Print the generated questions
-# print(generated_questions)
-
-# answers = {}
-
-# for question in questions:
-#     result = qa_pipeline(question=question, context=text)
-#     if result['score'] >= threshold:
-#         answers[question] = result  # Store the entire answer object
-#     else:
-#         answers[question] = {"answer": "I don't know", "score": result['score']}
-
-# # Display generated questions and answers
-# print("Generated Questions and Answers from Unsummarized Text:")
-# for q, a in answers_unsummarized.items():
-#     print(f"Q: {q}\nA: {a}\n")
-
 """# Video
 
 ## Metric 2: Shot Detection
@@ -981,9 +817,9 @@ notebook_mode_print(scene_list)
 
 # 2: Segment Scoring
 scene_segments = [(
-                  end.get_seconds() - start.get_seconds(), start.get_timecode(),
-                  end.get_timecode())
-                  for start, end in scene_list]
+    end.get_seconds() - start.get_seconds(), start.get_timecode(),
+    end.get_timecode())
+    for start, end in scene_list]
 
 # Convert to DataFrame
 df_scenes = pd.DataFrame(scene_segments,
@@ -1097,45 +933,6 @@ else:
 # Display the updated DataFrame
 notebook_mode_print(df_sentences)
 
-"""# Audio
-
-## Metric: Silence Detection
-* From the Paragraph boundaries, get the time in aduio that we care about
-* For each time in audio we care about, analyze if they are low volume
-
-OR
-* analyze all potential sentence boundaries first
-* match with end of sentences
-"""
-
-# # 0: Load audio, extract timestamps
-
-# SAMPLING_RATE = 16000 # 16 kHz
-
-# model = load_silero_vad()
-# wav = read_audio(audio_output)
-# speech_timestamps = get_speech_timestamps(wav, model)
-
-# # Check the shape of the wav tensor
-# print(f"Audio shape: {wav.shape}")
-# print(f"Audio length (seconds): {len(wav) / SAMPLING_RATE:.2f}")
-
-# # Speech Intervals
-# speech_intervals = []
-# for i in range(0, len(speech_timestamps)-1):
-#     speech_intervals.append((speech_timestamps[i]['start'] / SAMPLING_RATE, speech_timestamps[i]['end'] / SAMPLING_RATE))
-
-# # Silence Intervals
-# silence_intervals = []
-# for i in range(1, len(speech_timestamps)):
-#     silence_start = speech_timestamps[i-1]['end']  # End of previous speech segment
-#     silence_end = speech_timestamps[i]['start']     # Start of current speech segment
-#     silence_intervals.append((silence_start / SAMPLING_RATE, silence_end / SAMPLING_RATE))
-
-# notebook_mode_print(speech_timestamps[0:3])
-# notebook_mode_print(speech_intervals[0:3])
-# notebook_mode_print(silence_intervals[0:3])
-
 """# Final Score - Metric Weighting"""
 
 # Normalized Weigthed average
@@ -1190,11 +987,6 @@ notebook_mode_print(df_sentences)
 
 # Threshold
 threshold = hyperparameters['deletion_metric']['threshold']
-
-# Deletion under static threshold
-# filtered_df_to_keep = df_sentences[df_sentences['metric_final'] >= threshold]
-# filtered_df_to_delete = df_sentences[df_sentences['metric_final'] < threshold]
-# filtered_df = filtered_df_to_keep
 
 # Percentage
 percentile = df_sentences['metric_final'].quantile(threshold)
@@ -1349,21 +1141,6 @@ def get_video_length(input_video):
     return float(probe['format']['duration'])
 
 
-# def get_video_length(video_input):
-
-#     # Run ffmpeg to get video information
-#     result = subprocess.run([ffmpeg, '-i', video_input], stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-
-#     # Extract duration from stderr output
-#     stderr_output = result.stderr
-#     for line in stderr_output.split('\n'):
-#         if 'Duration' in line:
-#             # Extract the duration: 'Duration: hh:mm:ss.xx'
-#             duration_str = line.split(',')[0].split('Duration: ')[1].strip()
-#             h, m, s = map(float, duration_str.split(':'))
-#             return h * 3600 + m * 60 + s  # Convert to seconds
-#     return 0  # Return 0 if duration is not found
-
 def generate_keep_timestamps(timestamps_to_remove, video_length=None):
     """
     Given a list of timestamps to remove from a video, generates the list of timestamps to keep.
@@ -1463,7 +1240,7 @@ if not experiment_mode:
     print(f"Skimmed Video Length: {skimmed_video_length:.2f}s\n")
 
     summarization_ratio = (
-                                      original_video_length - skimmed_video_length) / original_video_length
+                                  original_video_length - skimmed_video_length) / original_video_length
     print(f"Skimmed/Original Video Length Ratio: {summarization_ratio:.2f}")
 
 """### Experiment Export"""
