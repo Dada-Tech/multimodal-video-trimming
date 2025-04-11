@@ -681,7 +681,7 @@ if parahraph_wordcount > 0:
     text = paragraph
 
     # Tokenization
-    inputs = tokenizer(text, return_tensors="pt", max_length=4096,
+    inputs = tokenizer(text, return_tensors="pt", max_length=16384,
                        truncation=True)
 
     # Calculate dynamic summary length
@@ -743,7 +743,7 @@ else:
 
 if not skip_text_metrics:
     # config
-    attention_window = 1024
+    attention_window = 516
     model_size = hyperparameters["metric_1"]["model_size"]
     model_name_lf = f'allenai/longformer-{model_size}-4096'
     config = LongformerConfig.from_pretrained(model_name_lf,
