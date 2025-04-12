@@ -743,16 +743,18 @@ if not skip_text_metrics:
     )
 
 if not skip_text_metrics:
+    instruction = "Represent the text for semantic similarity"
+
     # 3: Embedding (with Tokenization)
     paragraph_embedding = model_instructor_xl.encode(
-        paragraph_summarized,
+        [(instruction, paragraph_summarized)],
         convert_to_tensor=True,
         max_length=4096,
         truncation=True
     )
 
     sentence_embeddings = model_instructor_xl.encode(
-        sentences,
+        [(instruction, s) for s in sentences],
         convert_to_tensor=True,
         max_length=4096,
         truncation=True
@@ -764,10 +766,8 @@ The [CLS] (classification) token is often used in transformer models to represen
 
 if not skip_text_metrics:
     # 4: Relevance scores
-
     relevance_scores = [
-        torch.cosine_similarity(paragraph_embedding, sentence_embedding,
-                                dim=0).item()
+        torch.cosine_similarity(paragraph_embedding, sentence_embedding).item()
         for sentence_embedding in sentence_embeddings
     ]
 
@@ -817,9 +817,9 @@ notebook_mode_print(scene_list)
 
 # 2: Segment Scoring
 scene_segments = [(
-    end.get_seconds() - start.get_seconds(), start.get_timecode(),
-    end.get_timecode())
-    for start, end in scene_list]
+                  end.get_seconds() - start.get_seconds(), start.get_timecode(),
+                  end.get_timecode())
+                  for start, end in scene_list]
 
 # Convert to DataFrame
 df_scenes = pd.DataFrame(scene_segments,
@@ -1240,7 +1240,7 @@ if not experiment_mode:
     print(f"Skimmed Video Length: {skimmed_video_length:.2f}s\n")
 
     summarization_ratio = (
-                                  original_video_length - skimmed_video_length) / original_video_length
+                                      original_video_length - skimmed_video_length) / original_video_length
     print(f"Skimmed/Original Video Length Ratio: {summarization_ratio:.2f}")
 
 """### Experiment Export"""
