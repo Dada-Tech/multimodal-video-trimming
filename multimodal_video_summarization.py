@@ -139,6 +139,7 @@ class AutoSummary(BaseModel):
 
 class DeletionMetric(BaseModel):
     threshold: confloat(ge=0.05, le=0.5)
+    smoothing: confloat(ge=0.0, le=1.0)
 
 
 class Metric1(BaseModel):
@@ -175,6 +176,7 @@ class Hyperparameters(BaseModel):
 
 *   **`threshold`**: 0.3
     *   Deleting the bottom **`n`** percent of scores.
+*   **`smoothing`**: Smooths the silence between sentneces so they dont get a value of 0. between `0` and `1.0`
 
 ### Metric 1
 *   **`weight`**: Values between `0` and `1.0`
@@ -220,7 +222,8 @@ if notebook_mode:
             "max_summary_length": 600
         },
         "deletion_metric": {
-            "threshold": 0.2
+            "threshold": 0.2,
+            "smoothing": 0.8
         },
         "metric_1": {
             "model_size": "base",
@@ -268,6 +271,8 @@ else:
 
     parser.add_argument("--deletion_metric_threshold", type=float, default=0.2,
                         help="Threshold for deletion metric")
+    parser.add_argument("--deletion_metric_smoothing", type=float, default=0.8,
+                        help="Smoothing factor for deletion metric")
 
     parser.add_argument("--metric_1_model_size", type=str,
                         choices=["base", "large"], default="base",
@@ -304,7 +309,8 @@ else:
             "max_summary_length": args.auto_summary_max_summary_length
         },
         "deletion_metric": {
-            "threshold": args.deletion_metric_threshold
+            "threshold": args.deletion_metric_threshold,
+            "smoothing": args.deletion_metric_smoothing
         },
         "metric_1": {
             "model_size": args.metric_1_model_size,
@@ -371,6 +377,7 @@ from pydub import AudioSegment
 
 # Video
 import ffmpeg
+import cv2
 from scenedetect import detect, ContentDetector
 
 print_info("importing done")
@@ -465,6 +472,29 @@ def paragraph_to_file(text, filename):
         print(f"Export Successful: {filename}")
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
+def get_video_info(video_name):
+    # Load the video
+    video = cv2.VideoCapture(video_name)
+
+    # Get the frames per second (FPS)
+    fps = video.get(cv2.CAP_PROP_FPS)
+
+    # Get the total number of frames in the video
+    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Calculate the video length in seconds
+    video_length_sec = frame_count / fps
+
+    return (video_length_sec, frame_count, fps)
+
+
+def get_video_length(input_video):
+    """Get the duration (length) of a video file using ffmpeg-python."""
+    probe = ffmpeg.probe(input_video, v='error', select_streams='v:0',
+                         show_entries='format=duration')
+    return float(probe['format']['duration'])
 
 
 """## Datasets
@@ -935,6 +965,82 @@ notebook_mode_print(df_sentences)
 
 """# Final Score - Metric Weighting"""
 
+
+def smooth_consecutive_zeros(arr, discount=0.8):
+    arr = np.array(arr, dtype=float)
+    i = 0
+    while i < len(arr):
+        if arr[i] == 0:
+            start = i
+            while i < len(arr) and arr[i] == 0:
+                i += 1
+            end = i
+
+            prev = next(
+                (arr[j] for j in range(start - 1, -1, -1) if arr[j] != 0), None)
+            next_ = next((arr[j] for j in range(end, len(arr)) if arr[j] != 0),
+                         None)
+
+            if prev is not None and next_ is not None:
+                base_val = ((prev + next_) / 2) * discount
+            elif prev is not None:
+                base_val = prev * discount
+            elif next_ is not None:
+                base_val = next_ * discount
+            else:
+                base_val = 0  # fallback if all values are 0
+
+            arr[start:end] = base_val
+        else:
+            i += 1
+    return arr.tolist()
+
+
+def insert_silence_rows(df):
+    if len(df) < 1:
+        return df.copy()
+
+    new_rows = []
+    base_idx_counter = 0
+
+    # Check for silence at the beginning (if first start_time != "00:00:00.000")
+    first_row = df.iloc[0]
+    if first_row['start_time'] != "00:00:00.000":
+        silence_row = {
+            'metric_final': 0.0,
+            'start_time': "00:00:00.000",
+            'end_time': first_row['start_time'],
+            'base_idx': -1,
+            'sentence': ''
+        }
+        new_rows.append(pd.Series(silence_row))
+
+    # Process all rows
+    for i in range(len(df)):
+        # Add current row (with updated base_idx)
+        curr_row = df.iloc[i].copy()
+        curr_row['base_idx'] = base_idx_counter
+        new_rows.append(curr_row)
+        base_idx_counter += 1
+
+        # Check for silence between current and next row
+        if i < len(df) - 1:
+            next_row = df.iloc[i + 1]
+            if curr_row['end_time'] != next_row['start_time']:
+                silence_row = {
+                    'metric_final': 0.0,
+                    'start_time': curr_row['end_time'],
+                    'end_time': next_row['start_time'],
+                    'base_idx': -1,
+                    'sentence': ''
+                }
+                new_rows.append(pd.Series(silence_row))
+
+    final_df = pd.DataFrame(new_rows).reset_index(drop=True)
+    final_df['base_idx'] = final_df.index  # update base_idx to match row order
+    return final_df
+
+
 # Normalized Weigthed average
 w1 = hyperparameters['metric_1']['weight'] if not skip_text_metrics else 0
 w2 = hyperparameters['metric_2']['weight']
@@ -982,6 +1088,18 @@ df_sentences = df_sentences[[
 ]].copy()
 
 notebook_mode_print(df_sentences)
+
+"""#### Silence Smoothing"""
+
+# Smoothing
+smoothing_discount = hyperparameters['deletion_metric']['smoothing']
+
+# Insert Silence rows
+df_sentences = insert_silence_rows(df_sentences)
+
+# SMOOTH SILENCE SCORES
+df_sentences["metric_final"] = smooth_consecutive_zeros(
+    df_sentences["metric_final"].tolist(), discount=smoothing_discount)
 
 """### Deletion Metric"""
 
@@ -1132,13 +1250,6 @@ def skim_video(input_video, output_video, segments_to_retain):
         print(result.stderr.decode())  # Print the error output
     else:
         print_info("Video processed successfully.")
-
-
-def get_video_length(input_video):
-    """Get the duration (length) of a video file using ffmpeg-python."""
-    probe = ffmpeg.probe(input_video, v='error', select_streams='v:0',
-                         show_entries='format=duration')
-    return float(probe['format']['duration'])
 
 
 def generate_keep_timestamps(timestamps_to_remove, video_length=None):
