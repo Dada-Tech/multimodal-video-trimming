@@ -377,7 +377,6 @@ from pydub import AudioSegment
 
 # Video
 import ffmpeg
-import cv2
 from scenedetect import detect, ContentDetector
 
 print_info("importing done")
@@ -474,27 +473,26 @@ def paragraph_to_file(text, filename):
         print(f"An error occurred: {e}")
 
 
-def get_video_info(video_name):
-    # Load the video
-    video = cv2.VideoCapture(video_name)
-
-    # Get the frames per second (FPS)
-    fps = video.get(cv2.CAP_PROP_FPS)
-
-    # Get the total number of frames in the video
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    # Calculate the video length in seconds
-    video_length_sec = frame_count / fps
-
-    return (video_length_sec, frame_count, fps)
-
-
 def get_video_length(input_video):
     """Get the duration (length) of a video file using ffmpeg-python."""
     probe = ffmpeg.probe(input_video, v='error', select_streams='v:0',
                          show_entries='format=duration')
     return float(probe['format']['duration'])
+
+
+def seconds_to_srt_timestamp(seconds):
+    """
+    Extract hours, minutes, seconds, and milliseconds
+    from a given number of seconds.
+    """
+
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    seconds = seconds % 60
+    milliseconds = int((seconds - int(seconds)) * 1000)
+
+    # Format as HH:MM:SS,MS
+    return f"{hours:02}:{minutes:02}:{int(seconds):02},{milliseconds:03}"
 
 
 """## Datasets
@@ -549,22 +547,6 @@ each **`subtitle`** in the subtitles array has the following properties:
    - This field holds any additional data or formatting specific to the SRT file or software used to create it. Often empty and can usually be ignored.
    - `''` (Empty string, or sometimes contains specific formatting codes)
 """
-
-
-def seconds_to_srt_timestamp(seconds):
-    """
-    Extract hours, minutes, seconds, and milliseconds
-    from a given number of seconds.
-    """
-
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    seconds = seconds % 60
-    milliseconds = int((seconds - int(seconds)) * 1000)
-
-    # Format as HH:MM:SS,MS
-    return f"{hours:02}:{minutes:02}:{int(seconds):02},{milliseconds:03}"
-
 
 # Select device (GPU if available, otherwise CPU)
 language = "en"
@@ -1036,6 +1018,24 @@ def insert_silence_rows(df):
                 }
                 new_rows.append(pd.Series(silence_row))
 
+    # Check for silence at the ending (if last start_time < video length)
+    video_end_s = get_video_length(video_input)
+    video_end_ts = seconds_to_srt_timestamp(video_end_s)
+
+    last_row = df.iloc[-1]
+    last_row_seconds = ts_to_s(last_row['end_time'])
+
+    if last_row_seconds < video_end_s:
+        silence_row = {
+            'metric_final': 0.0,
+            'start_time': last_row['end_time'],
+            'end_time': video_end_ts,
+            'base_idx': -1,
+            'sentence': ''
+        }
+        new_rows.append(pd.Series(silence_row))
+
+    # new_rows to df
     final_df = pd.DataFrame(new_rows).reset_index(drop=True)
     final_df['base_idx'] = final_df.index  # update base_idx to match row order
     return final_df
@@ -1100,6 +1100,8 @@ df_sentences = insert_silence_rows(df_sentences)
 # SMOOTH SILENCE SCORES
 df_sentences["metric_final"] = smooth_consecutive_zeros(
     df_sentences["metric_final"].tolist(), discount=smoothing_discount)
+
+notebook_mode_print(df_sentences)
 
 """### Deletion Metric"""
 
