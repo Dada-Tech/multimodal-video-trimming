@@ -86,6 +86,21 @@ def ts_to_s(timestamp):
     return total_seconds
 
 
+def s_to_ts(seconds):
+    """
+    Extract hours, minutes, seconds, and milliseconds
+    from a given number of seconds.
+    """
+
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    seconds = seconds % 60
+    milliseconds = int((seconds - int(seconds)) * 1000)
+
+    # Format as HH:MM:SS.MS
+    return f"{hours:02}:{minutes:02}:{int(seconds):02}.{milliseconds:03}"
+
+
 def generate_experiment_filename(id_token, base, filename_without_extension,
                                  extension):
     m1w = hyperparameters["metric_1"]["weight"]
@@ -199,11 +214,11 @@ class Hyperparameters(BaseModel):
 """
 
 if notebook_mode:
-    video_input = "dataset/teamwork in the classroom.mov"
-    video_output = "dataset/teamwork in the classroom_skimmed.mov"
+    # video_input = "dataset/teamwork in the classroom.mov"
+    # video_output = "dataset/teamwork in the classroom_skimmed.mov"
 
-    # video_input = "dataset/uGu_10sucQo.mp4"
-    # video_output = "dataset/uGu_10sucQo_skimmed.mp4"
+    video_input = "dataset/z_6gVvQb2d0.mp4"
+    video_output = "dataset/z_6gVvQb2d0_skimmed.mp4"
 
     experiment_mode = False  ## If experiment mode is True, you must run SRT File Gen block
     skip_nlp_downloads = False
@@ -1020,7 +1035,7 @@ def insert_silence_rows(df):
 
     # Check for silence at the ending (if last start_time < video length)
     video_end_s = get_video_length(video_input)
-    video_end_ts = seconds_to_srt_timestamp(video_end_s)
+    video_end_ts = s_to_ts(video_end_s)
 
     last_row = df.iloc[-1]
     last_row_seconds = ts_to_s(last_row['end_time'])
@@ -1363,7 +1378,11 @@ if experiment_mode:
                   'sentence']].to_csv(filename_experiment_sentences,
                                       index=False)
 
+    # json
+    hyperparameter_export = hyperparameters
+    hyperparameter_export['wordcount'] = parahraph_wordcount
+
     with open(filename_experiment_hyperparameters, "w") as f:
-        json.dump(hyperparameters, f, indent=2)
+        json.dump(hyperparameter_export, f, indent=2)
 
     print_info("Experiment files exported.")
